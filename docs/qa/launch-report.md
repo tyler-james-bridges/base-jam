@@ -1,8 +1,36 @@
 # BASE JAM production launch QA
 
+## Remediation re-test
+
+**Final verdict: PASS WITH OPERATIONAL CAVEAT**
+
+The two player-facing findings from the independent review were fixed in commit
+`9e01d1f1129fac953bda2e23ff9375fe97a62c3d` and re-tested against Vercel
+deployment `dpl_B2fKqMpqRKTMaeWcuESYvkh5SykQ` on
+`https://basejam.0x402.sh` at 2026-07-18T13:48Z.
+
+| Finding | Re-test result | Production evidence |
+| --- | --- | --- |
+| Initial RPC recovery | **RESOLVED** | With only `GET /api/levels/latest` intercepted as HTTP 503, **Use practice plate** fetched the dedicated RPC-independent practice endpoint, requested a signed run with `practice:true`, and opened an 18-piece board labeled `Unranked practice`. [Screenshot 14](screenshots/14-fixed-practice-recovery.png) |
+| Long practice identifier overlap | **RESOLVED** | The real 24-digit future-block path rendered `Practice plate` and compact label `Requested #999999…999999`. At 1280×900 the heading ended at x=289.14 and the board began at x=336.38, leaving a measured 47.24px gap. [Screenshot 15](screenshots/15-fixed-practice-label.png) |
+| Public Base RPC dependency | **OPEN — OPERATIONAL** | Ranked production gameplay remains healthy and automatically degrades to deterministic unranked practice. A dedicated monitored provider is still recommended before sustained high traffic. |
+
+The custom hostname resolved to Vercel from both Cloudflare and Google public
+DNS, served HTTPS 200 with a valid certificate, and rendered absolute
+`https://basejam.0x402.sh/opengraph-image...` metadata. A fresh real Base run
+also passed end-to-end on the custom domain: 24 ranked pieces, signed start
+ticket, 200 replay finish, `verified:true`, `ranked:true`, and a signed share
+token with no page or console errors.
+
+The remediation build passed 27 unit/API tests, 8 desktop/mobile Playwright
+tests, lint, typecheck, and production build locally. GitHub CI run
+[`29646668269`](https://github.com/tyler-james-bridges/base-jam/actions/runs/29646668269)
+independently passed both `verify` and `browser-smoke` jobs on the same SHA.
+The original review below remains intact as the audit trail for what was found.
+
 ## Findings
 
-### Medium — Initial RPC recovery cannot actually start the advertised practice plate
+### Medium — Initial RPC recovery cannot actually start the advertised practice plate (resolved)
 
 - **What the player sees:** after the initial level request fails, the recovery
   screen offers **Use practice plate**. Selecting it returns the player to the
@@ -20,7 +48,7 @@
 - **Mode:** Playwright interception, clearly simulated; normal happy-path APIs
   were not mocked.
 
-### Medium — Long practice block identifiers overlap the desktop playfield
+### Medium — Long practice block identifiers overlap the desktop playfield (resolved)
 
 - **What the player sees:** a future/unavailable numeric block correctly becomes
   an unranked practice level, but its generated identifier runs out of the left
@@ -38,7 +66,7 @@
 - **Evidence:** [real future-block practice fallback](screenshots/11-real-future-block-practice-fallback.png).
 - **Mode:** real production API and UI; no interception.
 
-### Medium — Production is configured to use Base's public RPC endpoint
+### Medium — Production is configured to use Base's public RPC endpoint (open operational caveat)
 
 - **What was observed:** the deployed production environment has
   `BASE_RPC_HTTP_URL` set, but its host is `mainnet.base.org`.
@@ -55,15 +83,15 @@
 
 ## Launch recommendation
 
-**PASS WITH CAVEATS**
+**PASS WITH OPERATIONAL CAVEAT**
 
 The exact production artifact passes its core launch story: anonymous access,
 real ranked Base data, pointer/touch controls, deterministic gameplay, nonzero
 placement, undo/spill, server-verified replay, tamper-evident share URL, same-block
 challenge, dynamic OG images, responsive mobile layout, and safe invalid-link/API
-handling. The two user-facing findings are confined to recovery/practice paths;
-the RPC provider is an operational caveat. Fix all three before promoting the
-fallback experience as production-hardened.
+handling. The two user-facing recovery/practice findings are resolved by the
+remediation re-test above. The public RPC provider remains an operational
+hardening item rather than a player-facing launch blocker.
 
 ## Artifact under test
 
