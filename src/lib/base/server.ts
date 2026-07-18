@@ -3,6 +3,8 @@ export {
   blockLevelOrPractice,
   fetchBaseLevel,
   fetchLatestBaseLevel,
+  fetchLatestBaseLevels,
+  latestMixOrPractice,
   latestLevelOrPractice,
   type FetchLevelOptions,
 } from "./client";

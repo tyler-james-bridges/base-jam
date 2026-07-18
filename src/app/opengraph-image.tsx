@@ -1,19 +1,15 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "BASE JAM — Pack a real Base block";
+export const alt = "BASE JAM — Play the chain";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const colors = [
-  "#1456f0",
-  "#1456f0",
-  "#ff5b45",
-  "#181818",
-  "#b6d81d",
-  "#1456f0",
-  "#8f62d8",
-  "#181818",
+const rails = [
+  { name: "DRUMS", color: "#181818" },
+  { name: "BASS", color: "#b6d81d" },
+  { name: "SYNTH", color: "#1456f0" },
+  { name: "FX", color: "#8f62d8" },
 ];
 
 export default function OpenGraphImage() {
@@ -59,7 +55,7 @@ export default function OpenGraphImage() {
                 lineHeight: 0.82,
               }}
             >
-              BASE JAM
+              JAM
             </div>
             <div
               style={{
@@ -70,11 +66,11 @@ export default function OpenGraphImage() {
                 lineHeight: 0.82,
               }}
             >
-              THE BLOCK.
+              THE CHAIN.
             </div>
           </div>
           <div style={{ display: "flex", fontSize: 20 }}>
-            Real Base transactions. One shared packing challenge.
+            Real Base transactions. One shared live rhythm chart.
           </div>
         </div>
         <div
@@ -84,28 +80,70 @@ export default function OpenGraphImage() {
             height: 470,
             marginLeft: "auto",
             alignSelf: "center",
-            flexWrap: "wrap",
             border: "3px solid #181818",
             background: "#efe7cf",
             boxShadow: "14px 14px 0 #181818",
-            padding: 12,
+            flexDirection: "column",
+            justifyContent: "center",
+            padding: "28px 20px",
           }}
         >
-          {Array.from({ length: 64 }, (_, index) => (
+          {rails.map((rail, lane) => (
             <div
-              key={index}
+              key={rail.name}
               style={{
                 display: "flex",
-                width: "12.5%",
-                height: "12.5%",
-                border: "3px solid #efe7cf",
-                borderRadius: 7,
-                background:
-                  index % 9 === 0 || index % 13 === 0
-                    ? "#efe7cf"
-                    : colors[(index * 7 + Math.floor(index / 8)) % colors.length],
+                position: "relative",
+                width: "100%",
+                height: 84,
+                alignItems: "center",
               }}
-            />
+            >
+              <div
+                style={{
+                  display: "flex",
+                  width: 82,
+                  height: 46,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "2px solid #181818",
+                  background: rail.color,
+                  color: lane === 1 ? "#181818" : "#f4eedb",
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
+              >
+                {rail.name}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  position: "relative",
+                  width: 318,
+                  height: 44,
+                  marginLeft: -2,
+                  alignItems: "center",
+                  border: `2px solid ${rail.color}`,
+                  background: "#f4eedb",
+                }}
+              >
+                {[0, 1, 2, 3].map((note) => (
+                  <div
+                    key={note}
+                    style={{
+                      display: "flex",
+                      position: "absolute",
+                      left: 34 + ((note * 67 + lane * 29) % 250),
+                      width: note % 2 === 0 ? 25 : 18,
+                      height: note % 2 === 0 ? 25 : 18,
+                      border: "2px solid #181818",
+                      background: rail.color,
+                      transform: note % 2 === 0 ? "rotate(-4deg)" : "rotate(5deg)",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>

@@ -1914,3 +1914,1095 @@ kbd {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* BASE JAM rhythm edition */
+.rhythm-arcade-home {
+  grid-template-columns:
+    minmax(220px, 0.52fr)
+    minmax(560px, 1.5fr)
+    minmax(180px, 0.4fr);
+}
+
+.rhythm-brief h1 {
+  font-size: clamp(58px, 6vw, 94px);
+}
+
+.rhythm-ready-stage .ready-stage__top,
+.rhythm-ready-stage .ready-stage__bottom {
+  width: min(100%, 860px);
+}
+
+.home-mix-preview {
+  position: relative;
+  width: min(100%, 860px);
+  aspect-ratio: 1.58;
+  border: 1px solid var(--ink);
+  background:
+    radial-gradient(circle at 72% 32%, rgba(20, 86, 240, 0.12), transparent 34%),
+    repeating-linear-gradient(
+      0deg,
+      rgba(24, 24, 24, 0.018) 0,
+      rgba(24, 24, 24, 0.018) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    var(--paper);
+  box-shadow: 12px 12px 0 var(--ink);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.home-mix-preview::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background:
+    linear-gradient(105deg, transparent 0 73%, rgba(20, 86, 240, 0.055) 73%),
+    linear-gradient(12deg, rgba(255, 91, 69, 0.035), transparent 42%);
+  content: "";
+  pointer-events: none;
+}
+
+.mix-preview-grid {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: flex;
+  justify-content: space-evenly;
+  pointer-events: none;
+}
+
+.mix-preview-grid i {
+  width: 1px;
+  height: 100%;
+  background: rgba(24, 24, 24, 0.13);
+  transform: skewY(-8deg);
+}
+
+.mix-preview-grid i:nth-child(odd) {
+  background: rgba(20, 86, 240, 0.16);
+}
+
+.mix-preview-hitline {
+  position: absolute;
+  z-index: 4;
+  top: 10%;
+  bottom: 8%;
+  left: 24%;
+  width: 9px;
+  border: solid var(--ink);
+  border-width: 0 3px;
+  background: var(--coral);
+  pointer-events: none;
+}
+
+.mix-preview-hitline span {
+  position: absolute;
+  top: -15px;
+  left: -7px;
+  font-family: var(--mono);
+  font-size: 7px;
+  transform: rotate(-90deg);
+}
+
+.mix-preview-rails {
+  position: absolute;
+  z-index: 2;
+  inset: 11% 4% 8% 5%;
+  display: grid;
+  gap: 4%;
+  grid-template-rows: repeat(4, 1fr);
+}
+
+.mix-preview-rail {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.mix-preview-rail b {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 74px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid var(--ink);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 8px;
+}
+
+.mix-preview-rail:nth-child(2) b {
+  color: var(--ink);
+}
+
+.mix-preview-rail span {
+  width: calc(100% - 62px);
+  height: 64%;
+  margin-left: -12px;
+  border: solid;
+  border-width: 1px 0;
+  background: rgba(244, 238, 219, 0.46);
+  clip-path: polygon(0 7%, 100% 31%, 100% 69%, 0 93%);
+}
+
+.mix-preview-signals {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mix-preview-signals i {
+  position: absolute;
+  top: var(--signal-y);
+  left: var(--signal-x);
+  width: clamp(12px, 2.2vw, 25px);
+  aspect-ratio: 1;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  background: var(--signal-color);
+  box-shadow: 2px 2px 0 rgba(24, 24, 24, 0.3);
+  transform: translate(-50%, -50%) rotate(-3deg);
+}
+
+.mix-preview-signals i:nth-child(3n) {
+  transform: translate(-50%, -50%) rotate(7deg) scale(0.72);
+}
+
+.mix-preview-start {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  left: 53%;
+  display: flex;
+  width: min(330px, 42%);
+  border: 1px solid var(--ink);
+  background: rgba(244, 238, 219, 0.97);
+  box-shadow: 8px 8px 0 var(--blue);
+  flex-direction: column;
+  padding: 16px;
+  transform: translate(-50%, -46%) rotate(-1deg);
+}
+
+.mix-preview-start small,
+.mix-preview-start em {
+  font-family: var(--mono);
+  font-size: 7px;
+  font-style: normal;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.mix-preview-start strong {
+  margin: 7px 0 11px;
+  font-size: clamp(17px, 2vw, 25px);
+  letter-spacing: -0.055em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.mix-preview-start .button {
+  width: 100%;
+  min-width: 0;
+  min-height: 54px;
+  margin-bottom: 9px;
+  padding: 13px 15px;
+  text-transform: uppercase;
+}
+
+.mix-preview-start .button b {
+  font-size: 20px;
+}
+
+.stem-stack {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  flex-direction: column;
+}
+
+.stem-stack > div {
+  display: grid;
+  min-height: 52px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  gap: 8px;
+  grid-template-columns: 7px 18px 1fr;
+}
+
+.stem-stack i {
+  width: 7px;
+  height: 70%;
+  border: 1px solid var(--ink);
+}
+
+.stem-stack small {
+  color: rgba(24, 24, 24, 0.5);
+  font-family: var(--mono);
+  font-size: 7px;
+}
+
+.stem-stack strong {
+  font-size: 13px;
+}
+
+.rhythm-poster {
+  width: min(100%, 265px);
+}
+
+.rhythm-loading .press-mark {
+  transform: rotate(45deg) skew(-8deg);
+}
+
+/* Live rhythm game */
+.rhythm-game-shell {
+  height: 100svh;
+  min-height: 690px;
+  overflow: hidden;
+}
+
+.rhythm-game-layout {
+  display: grid;
+  width: min(1480px, 100%);
+  height: calc(100svh - 92px);
+  min-height: 600px;
+  align-items: center;
+  margin: 0 auto;
+  gap: 12px clamp(18px, 2.5vw, 42px);
+  grid-template-areas:
+    "hud stage lanes"
+    ". controls .";
+  grid-template-columns:
+    minmax(180px, 0.42fr)
+    minmax(540px, 1.5fr)
+    minmax(185px, 0.44fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding: 16px 0 max(10px, env(safe-area-inset-bottom));
+}
+
+.rhythm-hud {
+  align-self: center;
+  grid-area: hud;
+}
+
+.rhythm-hud__block h1 {
+  margin: 14px 0 6px;
+  font-size: clamp(28px, 3vw, 48px);
+  letter-spacing: -0.075em;
+  line-height: 0.9;
+}
+
+.rhythm-hud__block > a {
+  color: var(--blue);
+  font-family: var(--mono);
+  font-size: 8px;
+  text-decoration: none;
+}
+
+.rhythm-hud dl {
+  margin: 34px 0 15px;
+  border-top: 1px solid var(--ink);
+}
+
+.rhythm-hud dl div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+}
+
+.rhythm-hud dt {
+  font-family: var(--mono);
+  font-size: 7px;
+  text-transform: uppercase;
+}
+
+.rhythm-hud dd {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.rhythm-progress {
+  height: 7px;
+  border: 1px solid var(--ink);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.rhythm-progress span {
+  display: block;
+  height: 100%;
+  background: var(--blue);
+  transition: width 100ms linear;
+}
+
+.rhythm-chain-state {
+  display: flex;
+  align-items: center;
+  margin-top: 13px;
+  font-family: var(--mono);
+  font-size: 7px;
+  gap: 8px;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.rhythm-chain-state i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--coral);
+}
+
+.rhythm-chain-state i.ranked {
+  background: var(--acid);
+  box-shadow: 0 0 0 3px rgba(182, 216, 29, 0.18);
+}
+
+.rhythm-stage {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-self: center;
+  grid-area: stage;
+  flex-direction: column;
+}
+
+.base-jam-rhythm-canvas {
+  width: min(100%, 960px);
+  aspect-ratio: 960 / 620;
+  border: 1px solid rgba(24, 24, 24, 0.3);
+  border-radius: 13px;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(24, 24, 24, 0.018) 0,
+      rgba(24, 24, 24, 0.018) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    rgba(244, 238, 219, 0.72);
+  box-shadow: 10px 10px 0 var(--ink);
+  overflow: hidden;
+  touch-action: none;
+}
+
+.base-jam-rhythm-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.rhythm-clock {
+  position: absolute;
+  z-index: 5;
+  top: 14px;
+  right: 16px;
+  display: flex;
+  width: 66px;
+  height: 66px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  background: var(--acid);
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.rhythm-clock span {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 0.9;
+}
+
+.rhythm-clock small {
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 6px;
+  text-transform: uppercase;
+}
+
+.rhythm-clock.is-urgent {
+  background: var(--coral);
+  animation: urgent 0.7s steps(2, end) infinite;
+}
+
+.rhythm-notice {
+  min-height: 18px;
+  margin: 13px 0 0;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.rhythm-lane-panel {
+  align-self: center;
+  grid-area: lanes;
+}
+
+.rhythm-lane-buttons {
+  display: flex;
+  margin: 12px 0;
+  border-bottom: 1px solid var(--line);
+  flex-direction: column;
+}
+
+.rhythm-lane-buttons button {
+  position: relative;
+  display: grid;
+  min-height: 62px;
+  align-items: center;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  gap: 7px;
+  grid-template-columns: 20px 1fr auto;
+  padding: 9px 7px 9px 13px;
+  text-align: left;
+}
+
+.rhythm-lane-buttons button::before {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: 0;
+  width: 6px;
+  border: 1px solid var(--ink);
+  background: var(--lane-color);
+  content: "";
+}
+
+.rhythm-lane-buttons button:hover,
+.rhythm-lane-buttons button.is-selected {
+  background: color-mix(in srgb, var(--lane-color) 13%, transparent);
+}
+
+.rhythm-lane-buttons button.is-selected {
+  outline: 2px solid var(--lane-color);
+  outline-offset: -2px;
+}
+
+.rhythm-lane-buttons button.is-active::after {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--acid);
+  box-shadow: 0 0 0 3px rgba(182, 216, 29, 0.18);
+  content: "";
+}
+
+.rhythm-lane-buttons small,
+.rhythm-lane-buttons span {
+  font-family: var(--mono);
+  font-size: 6px;
+}
+
+.rhythm-lane-buttons strong {
+  font-size: 13px;
+}
+
+.rhythm-lane-buttons span {
+  color: rgba(24, 24, 24, 0.55);
+}
+
+.rhythm-mute {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px dashed var(--ink);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 7px;
+  padding: 10px;
+  text-transform: uppercase;
+}
+
+.rhythm-control-dock {
+  position: relative;
+  z-index: 8;
+  display: grid;
+  width: min(620px, 92%);
+  justify-self: center;
+  grid-area: controls;
+  gap: 6px;
+  grid-template-columns: 0.72fr repeat(3, 1fr) 0.72fr;
+}
+
+.rhythm-control-dock button {
+  display: flex;
+  min-width: 0;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ink);
+  background: rgba(244, 238, 219, 0.94);
+  color: var(--ink);
+  cursor: pointer;
+  flex-direction: column;
+}
+
+.rhythm-control-dock button:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.rhythm-control-dock .rhythm-hit-button {
+  background: var(--blue);
+  color: #fff;
+}
+
+.rhythm-control-dock button:nth-child(3) {
+  background: var(--coral);
+  color: var(--ink);
+}
+
+.rhythm-control-dock button:nth-child(4) {
+  background: var(--acid);
+  color: var(--ink);
+}
+
+.rhythm-control-dock b {
+  font-size: 18px;
+}
+
+.rhythm-control-dock small {
+  margin-top: 3px;
+  font-family: var(--mono);
+  font-size: 6px;
+  text-transform: uppercase;
+}
+
+/* Rhythm result receipt */
+.rhythm-result-layout {
+  width: min(1280px, 100%);
+}
+
+.rhythm-result-stats {
+  max-width: 690px;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.mix-receipt {
+  position: relative;
+  width: min(100%, 540px);
+  justify-self: end;
+  border: 1px solid var(--ink);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(24, 24, 24, 0.02) 0,
+      rgba(24, 24, 24, 0.02) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    #efe7cf;
+  box-shadow: 12px 12px 0 var(--blue);
+  padding: 20px;
+  transform: rotate(1deg);
+}
+
+.mix-receipt::before {
+  position: absolute;
+  z-index: -1;
+  inset: 10px -8px -8px 8px;
+  border: 1px solid var(--ink);
+  background: var(--coral);
+  content: "";
+}
+
+.mix-receipt__top,
+.mix-receipt__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mix-receipt__top {
+  margin-bottom: 16px;
+}
+
+.mix-receipt__top span {
+  font-size: 27px;
+  letter-spacing: -0.055em;
+}
+
+.mix-receipt__top small {
+  font-family: var(--mono);
+  font-size: 7px;
+}
+
+.mix-receipt__wave {
+  display: flex;
+  height: 300px;
+  align-items: center;
+  border: 1px solid var(--ink);
+  background:
+    linear-gradient(rgba(24, 24, 24, 0.055) 1px, transparent 1px);
+  background-size: 100% 25%;
+  gap: 2px;
+  padding: 8px;
+}
+
+.mix-receipt__wave i {
+  width: 100%;
+  height: var(--bar-height);
+  max-height: 100%;
+  border: 1px solid rgba(24, 24, 24, 0.28);
+  background: transparent;
+}
+
+.mix-receipt__wave i.is-hit {
+  background: var(--bar-color);
+}
+
+.mix-receipt__blocks {
+  display: grid;
+  margin-top: 6px;
+  gap: 2px;
+  grid-template-columns: repeat(15, 1fr);
+}
+
+.mix-receipt__blocks span {
+  min-width: 0;
+  color: rgba(24, 24, 24, 0.55);
+  font-family: var(--mono);
+  font-size: 5px;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: clip;
+  writing-mode: vertical-rl;
+}
+
+.mix-receipt__bottom {
+  margin-top: 16px;
+}
+
+.mix-receipt__bottom > strong {
+  font-size: 50px;
+  letter-spacing: -0.08em;
+}
+
+.mix-receipt__bottom > div {
+  display: flex;
+  margin-left: auto;
+  margin-right: 18px;
+  flex-direction: column;
+  font-family: var(--mono);
+  font-size: 7px;
+  line-height: 1.65;
+  text-transform: uppercase;
+}
+
+.mix-receipt__bottom b {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  background: var(--acid);
+  font-size: 25px;
+}
+
+@media (max-width: 1100px) and (min-width: 761px) {
+  .rhythm-arcade-home {
+    grid-template-areas:
+      "brief stage"
+      "poster stage"
+      "queue queue";
+    grid-template-columns: minmax(190px, 0.42fr) minmax(500px, 1fr);
+  }
+
+  .rhythm-queue {
+    grid-template-columns: 150px 1fr;
+  }
+
+  .rhythm-queue .stem-stack {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .rhythm-queue .stem-stack > div {
+    border: 1px solid var(--line);
+    padding: 4px 8px;
+  }
+
+  .rhythm-game-layout {
+    gap: 10px 14px;
+    grid-template-columns: 150px minmax(480px, 1fr) 155px;
+  }
+
+  .rhythm-lane-buttons button {
+    min-height: 54px;
+  }
+}
+
+@media (max-height: 780px) and (min-width: 761px) {
+  .rhythm-game-layout {
+    grid-template-columns: 160px minmax(500px, 800px) 165px;
+    padding-top: 9px;
+  }
+
+  .base-jam-rhythm-canvas {
+    width: min(100%, 780px);
+  }
+
+  .rhythm-hud dl {
+    margin-top: 20px;
+  }
+
+  .rhythm-hud dl div {
+    padding: 7px 0;
+  }
+
+  .rhythm-lane-buttons button {
+    min-height: 48px;
+  }
+
+  .rhythm-control-dock button {
+    min-height: 46px;
+  }
+}
+
+@media (max-width: 760px) {
+  .rhythm-arcade-home {
+    gap: 24px;
+    padding-top: 27px;
+  }
+
+  .rhythm-brief h1 {
+    font-size: clamp(54px, 17vw, 76px);
+  }
+
+  .rhythm-brief .ready-block {
+    display: grid;
+  }
+
+  .home-mix-preview {
+    width: calc(100% - 7px);
+    aspect-ratio: 1.22;
+    margin-right: 7px;
+    box-shadow: 7px 7px 0 var(--ink);
+  }
+
+  .mix-preview-grid i:nth-child(even) {
+    display: none;
+  }
+
+  .mix-preview-hitline {
+    left: 20%;
+  }
+
+  .mix-preview-rails {
+    right: 2%;
+    left: 2%;
+  }
+
+  .mix-preview-rail b {
+    width: 56px;
+    height: 30px;
+    font-size: 6px;
+  }
+
+  .mix-preview-rail span {
+    width: calc(100% - 44px);
+  }
+
+  .mix-preview-start {
+    left: 54%;
+    width: min(260px, 66%);
+    padding: 11px;
+  }
+
+  .mix-preview-start strong {
+    margin: 5px 0 8px;
+    font-size: 17px;
+  }
+
+  .mix-preview-start .button {
+    min-height: 48px;
+    margin-bottom: 7px;
+    font-size: 11px;
+    padding: 10px 12px;
+  }
+
+  .mix-preview-signals i {
+    width: 14px;
+  }
+
+  .rhythm-queue {
+    grid-template-columns: 92px 1fr;
+  }
+
+  .rhythm-queue .ready-timer {
+    grid-row: 2;
+  }
+
+  .rhythm-queue .stem-stack {
+    display: grid;
+    grid-column: 2;
+    grid-row: 2;
+    border: 0;
+    gap: 4px;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .rhythm-queue .stem-stack > div {
+    min-height: 42px;
+    border: 1px solid var(--line);
+    padding: 4px 6px;
+  }
+
+  .rhythm-queue .ready-rules {
+    grid-column: 1 / -1;
+  }
+
+  .rhythm-poster {
+    width: calc(100% - 7px);
+    max-width: 520px;
+  }
+
+  .rhythm-game-shell {
+    height: auto;
+    min-height: 100svh;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    overflow: visible;
+  }
+
+  .rhythm-game-layout {
+    display: flex;
+    width: 100%;
+    height: auto;
+    min-height: calc(100svh - 78px);
+    gap: 9px;
+    flex-direction: column;
+    padding: 10px 0 0;
+  }
+
+  .rhythm-hud {
+    display: grid;
+    width: 100%;
+    align-items: end;
+    gap: 5px 12px;
+    grid-template-columns: 1fr minmax(210px, 1.4fr);
+  }
+
+  .rhythm-hud__block .eyebrow,
+  .rhythm-hud__block > a {
+    display: none;
+  }
+
+  .rhythm-hud__block h1 {
+    margin: 0;
+    font-size: 22px;
+  }
+
+  .rhythm-hud dl {
+    display: grid;
+    margin: 0;
+    border: 0;
+    gap: 5px;
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .rhythm-hud dl div {
+    align-items: flex-start;
+    border: 0;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  .rhythm-hud dt {
+    font-size: 5px;
+  }
+
+  .rhythm-hud dd {
+    font-size: 14px;
+  }
+
+  .rhythm-progress {
+    width: 100%;
+    height: 4px;
+    grid-column: 1 / -1;
+  }
+
+  .rhythm-chain-state {
+    display: flex;
+    margin: 1px 0 0;
+    font-size: 5px;
+    grid-column: 1 / -1;
+  }
+
+  .rhythm-stage {
+    width: calc(100% - 7px);
+    margin-right: 7px;
+  }
+
+  .base-jam-rhythm-canvas {
+    width: 100%;
+    border-radius: 8px;
+    box-shadow: 6px 6px 0 var(--ink);
+  }
+
+  .rhythm-clock {
+    top: 7px;
+    right: 7px;
+    width: 48px;
+    height: 48px;
+  }
+
+  .rhythm-clock span {
+    font-size: 19px;
+  }
+
+  .rhythm-clock small {
+    display: none;
+  }
+
+  .rhythm-notice {
+    min-height: 15px;
+    margin: 8px 0 0;
+    font-size: 6px;
+  }
+
+  .rhythm-lane-panel {
+    width: 100%;
+  }
+
+  .rhythm-lane-panel > .eyebrow,
+  .rhythm-lane-panel > .eyebrow {
+    display: none;
+  }
+
+  .rhythm-mute {
+    display: flex;
+    min-height: 32px;
+    margin-top: 4px;
+    padding: 7px 9px;
+  }
+
+  .rhythm-lane-buttons {
+    display: grid;
+    margin: 0;
+    border: 0;
+    gap: 4px;
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .rhythm-lane-buttons button {
+    min-height: 53px;
+    border: 1px solid var(--line);
+    gap: 0;
+    grid-template-columns: 1fr;
+    padding: 7px 5px 5px 12px;
+  }
+
+  .rhythm-lane-buttons button::before {
+    top: 5px;
+    bottom: 5px;
+    width: 4px;
+  }
+
+  .rhythm-lane-buttons button small {
+    display: none;
+  }
+
+  .rhythm-lane-buttons button strong {
+    font-size: 10px;
+  }
+
+  .rhythm-lane-buttons button span {
+    font-size: 5px;
+  }
+
+  .rhythm-control-dock {
+    position: sticky;
+    bottom: max(5px, env(safe-area-inset-bottom));
+    width: 100%;
+    margin-top: auto;
+    border: 1px solid var(--ink);
+    background: rgba(244, 238, 219, 0.97);
+    box-shadow: 4px 4px 0 var(--ink);
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .rhythm-control-dock button {
+    min-height: 58px;
+  }
+
+  .rhythm-control-dock b {
+    font-size: 17px;
+  }
+
+  .rhythm-control-dock small {
+    font-size: 5px;
+  }
+
+  .rhythm-result-shell {
+    overflow: visible;
+  }
+
+  .rhythm-result-layout {
+    gap: 52px;
+  }
+
+  .mix-receipt {
+    width: calc(100% - 12px);
+    margin-right: 12px;
+    justify-self: auto;
+    box-shadow: 8px 8px 0 var(--blue);
+    padding: 15px;
+  }
+
+  .mix-receipt__wave {
+    height: min(62vw, 270px);
+  }
+
+  .rhythm-result-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .rhythm-result-stats div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .rhythm-result-stats div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 390px) {
+  .mix-preview-start {
+    width: 70%;
+  }
+
+  .rhythm-hud {
+    grid-template-columns: 0.8fr 1.2fr;
+  }
+
+  .rhythm-hud dt {
+    display: none;
+  }
+
+  .rhythm-lane-buttons button strong {
+    font-size: 9px;
+  }
+}

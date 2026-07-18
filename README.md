@@ -1,47 +1,42 @@
 # BASE JAM
 
-Pack a real Base block into a 10×10 square.
+Play the chain.
 
-BASE JAM is a deterministic, wallet-optional browser game. It converts a buffered
-Base mainnet block into the same ordered set of transaction shapes for every
-player. Runs are replayed by the server before a signed challenge link is
-issued; client-submitted scores are never trusted.
+BASE JAM is a wallet-optional browser rhythm game. It turns 15 confirmed Base
+blocks into a deterministic 30-second chart: one two-second block per musical
+bar, four instrument rails, and three hit columns.
 
-## Why this exists
+## Gameplay
 
-Block explorers make chain activity observable. BASE JAM makes it playable.
+- Switch among DRUMS, BASS, SYNTH, and FX with A/D or the lane buttons.
+- Hit each rail’s three-note phrase with J/K/L.
+- Completing a phrase captures that instrument stem for four bars.
+- Chain together captures, timing streaks, and a full procedural mix.
+- Leave with a block-by-block performance receipt.
 
-- 60-second, one-thumb packing rounds
-- Real transaction-derived pieces
-- Guest-first play; wallet connection is optional
-- Pure simulation shared by the browser and replay verifier
-- Signed, tamper-evident result links
-- Explicit unranked fallback when Base data is unavailable
-- Zero custom contracts in the MVP
+Transaction hash, calldata size, gas, value, and fee data determine note
+placement and velocity. Everyone playing the same block sequence gets the same
+chart. The current rhythm vertical slice scores locally and labels that fact
+honestly; the previous packing replay APIs remain in the repository but are not
+used to claim that rhythm scores are server-verified.
 
 ## Architecture
 
 ```text
 Base RPC (server only)
-  → immutable LevelManifestV1
-  → deterministic transaction buckets
-  → pure 10×10 simulation
-  → Phaser presentation + DOM HUD
-  → signed run ticket
-  → server replay verification
-  → signed challenge URL
+  → 15 immutable LevelManifestV1 blocks
+  → deterministic rhythm chart
+  → pure timing / scoring state machine
+  → Phaser rail renderer + Web Audio sequencer
+  → React HUD, touch controls, and mix receipt
 ```
 
-The game never labels `gas` as actual gas used. Receipt-only fields are added
-only when the provider returns a matching receipt. Base deposit/system
-transactions (`0x7e`) do not become pieces.
-
-See [PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) and
-[FEASIBILITY.md](docs/FEASIBILITY.md) for the full decision record.
+If Base data is unavailable, the app can build an explicitly unranked,
+deterministic practice chart. No wallet or custom contract is required.
 
 ## Local development
 
-Requirements: Node 24 and pnpm 10.
+Requirements: Node 22+ and pnpm 10.
 
 ```bash
 cp .env.example .env.local
@@ -49,10 +44,9 @@ pnpm install
 pnpm dev
 ```
 
-The public Base RPC fallback is suitable only for local development. Production
-uses `BASE_RPC_HTTP_URLS` with a dedicated Base node provider first and Base's
-official endpoint as failover. The legacy single `BASE_RPC_HTTP_URL` remains
-supported.
+Production should provide `BASE_RPC_HTTP_URLS` with a dedicated Base node first
+and a failover endpoint second. The public Base RPC fallback is intended for
+local development.
 
 ## Verification
 
@@ -64,24 +58,9 @@ pnpm build
 pnpm test:e2e
 ```
 
-## Security posture
-
-- No private keys or unrestricted paymaster
-- No client-side RPC credentials
-- Run and share tokens use server-only HMAC secrets
-- Strict payload limits and schema validation
-- Deterministic replay verification, not client score acceptance
-- Anonymous local play remains available if wallet flows fail
-
-Wallet signatures prove account control, not that a player is human. BASE JAM does
-not claim bot-proof competition or guaranteed virality.
-
-## Base resources
-
-- [Base network connection guidance](https://docs.base.org/base-chain/quickstart/connecting-to-base)
-- [Base transaction finality](https://docs.base.org/base-chain/network-information/transaction-finality)
-- [Base standard app migration](https://docs.base.org/apps/guides/migrate-to-standard-web-app)
-- [Base Builder Codes](https://docs.base.org/apps/builder-codes/builder-codes)
+The rhythm chart and scoring state machine have deterministic unit coverage.
+Browser playtests cover desktop and mobile layouts, keyboard/touch controls,
+full-run completion, result receipts, overflow, and console errors.
 
 ## License
 

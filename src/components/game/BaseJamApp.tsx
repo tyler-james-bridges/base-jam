@@ -1,52 +1,37 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { armRhythmAudio } from "@/audio/rhythmAudio";
 import { WalletButton } from "@/components/WalletButton";
 import {
-  createGame,
-  createReplay,
-  currentPiece,
-  packedPercentage,
-  type GameReplay,
-  type GameState,
-  type Piece,
-} from "@/game/simulation";
-import {
-  type LevelApiResponse,
-  type LevelManifestV1,
-  type ShareRunPayloadV1,
+  createRhythmChart,
+  RHYTHM_LANES,
+  RHYTHM_RUN_SECONDS,
+  RHYTHM_STEP_SECONDS,
+  rhythmAccuracy,
+  rhythmResult,
+  type RhythmChart,
+  type RhythmColumn,
+  type RhythmLane,
+  type RhythmState,
+} from "@/game/rhythm";
+import type {
+  LevelApiResponse,
+  LevelManifestV1,
+  MixApiResponse,
 } from "@/lib/base/types";
-import { levelToSimulationTransactions } from "@/lib/base/simulation";
-import type { BaseJamGameController } from "@/phaser/createBaseJamGame";
-import { BaseJamBoard } from "./BaseJamBoard";
+import type { BaseJamRhythmController } from "@/phaser/createBaseJamRhythmGame";
+import { BaseJamRhythmBoard } from "./BaseJamRhythmBoard";
 
 type Phase = "home" | "loading" | "playing" | "result" | "error";
-
-interface StartRunResponse {
-  ticket: string;
-  expiresAt: string;
-  ranked: boolean;
-}
-
-interface FinishRunResponse {
-  shareToken?: string;
-  token?: string;
-  result?: ShareRunPayloadV1;
-  share?: ShareRunPayloadV1;
-}
-
-interface ApiErrorResponse {
-  error?: {
-    code?: string;
-    message?: string;
-  };
-}
-
-const RUN_SECONDS = 60;
-const FALLBACK_BLOCK_HASH =
-  "0x8f31a843fc6cd24af9e31f153b712bf3a4b95800997d580cc5f21f1c889ca07f";
 
 function numberLabel(value: string) {
   const numeric = Number(value);
@@ -57,14 +42,6 @@ function numberLabel(value: string) {
 
 function shortHash(hash: string) {
   return `${hash.slice(0, 8)}…${hash.slice(-6)}`;
-}
-
-function pieceColor(piece: Piece, index: number) {
-  const colors = ["#1456f0", "#ff5b45", "#b6d81d", "#181818", "#8f62d8"];
-  return colors[
-    (piece.source.inputBucket + piece.source.valueBucket + index) %
-      colors.length
-  ];
 }
 
 async function loadLevel(blockNumber?: string | null): Promise<LevelApiResponse> {
@@ -78,11 +55,22 @@ async function loadLevel(blockNumber?: string | null): Promise<LevelApiResponse>
   if (!response.ok) {
     throw new Error(
       response.status === 429
-        ? "Base is busy. Give the press a few seconds."
+        ? "Base is busy. Give the sequencer a few seconds."
         : "Could not load a Base block.",
     );
   }
   return response.json() as Promise<LevelApiResponse>;
+}
+
+async function loadMix(): Promise<MixApiResponse> {
+  const response = await fetch("/api/mixes/latest", {
+    cache: "no-store",
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) {
+    throw new Error("Could not sequence the latest Base blocks.");
+  }
+  return response.json() as Promise<MixApiResponse>;
 }
 
 async function loadPracticeLevel(
@@ -96,18 +84,9 @@ async function loadPracticeLevel(
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) {
-    throw new Error("Could not prepare the practice plate.");
+    throw new Error("Could not prepare the practice mix.");
   }
   return response.json() as Promise<LevelApiResponse>;
-}
-
-function practiceSourceLabel(level: LevelManifestV1): string {
-  const requestedBlock = /-for-(\d+)$/.exec(level.source.number)?.[1];
-  if (!requestedBlock) return "Daily deterministic fallback";
-  if (requestedBlock.length <= 14) {
-    return `Requested #${numberLabel(requestedBlock)}`;
-  }
-  return `Requested #${requestedBlock.slice(0, 6)}…${requestedBlock.slice(-6)}`;
 }
 
 function Header({ mode = "home" }: { mode?: Phase }) {
@@ -136,6 +115,82 @@ function Header({ mode = "home" }: { mode?: Phase }) {
   );
 }
 
+function HomeMixPreview({
+  challengeBlock,
+  level,
+  loading,
+  onPlay,
+}: {
+  challengeBlock?: string | null;
+  level?: LevelManifestV1;
+  loading: boolean;
+  onPlay: () => void;
+}) {
+  const signals = level?.pieces.slice(0, 18) ?? [];
+
+  return (
+    <div className="home-mix-preview" data-testid="home-mix-preview">
+      <div className="mix-preview-grid" aria-hidden>
+        {Array.from({ length: 6 }, (_, index) => (
+          <i key={index} />
+        ))}
+      </div>
+      <div className="mix-preview-hitline" aria-hidden>
+        <span>HIT</span>
+      </div>
+      <div className="mix-preview-rails" aria-hidden>
+        {RHYTHM_LANES.map((lane) => (
+          <div className="mix-preview-rail" key={lane.id}>
+            <b style={{ background: lane.color }}>{lane.name}</b>
+            <span style={{ borderColor: lane.color }} />
+          </div>
+        ))}
+      </div>
+      <div className="mix-preview-signals" aria-hidden>
+        {signals.map((signal, index) => {
+          const hashByte =
+            Number.parseInt(signal.hash.slice(2 + (index % 12) * 2, 4 + (index % 12) * 2), 16) ||
+            index * 13;
+          const lane = (index % 4) as RhythmLane;
+          return (
+            <i
+              key={`${signal.id}-${index}`}
+              style={
+                {
+                  "--lane": lane,
+                  "--signal-color": RHYTHM_LANES[lane].color,
+                  "--signal-x": `${31 + (hashByte % 57)}%`,
+                  "--signal-y": `${20 + lane * 20}%`,
+                } as CSSProperties
+              }
+            />
+          );
+        })}
+      </div>
+      <div className="mix-preview-start">
+        <small>
+          {level?.ranked ? "15 confirmed Base blocks" : "Practice feed ready"}
+        </small>
+        <strong>
+          {challengeBlock
+            ? `Challenge #${numberLabel(challengeBlock)}`
+            : "Start the live mix"}
+        </strong>
+        <button
+          className="button button--primary"
+          disabled={loading}
+          onClick={onPlay}
+          type="button"
+        >
+          <span>{loading ? "Reading Base…" : "Drop into the set"}</span>
+          <b aria-hidden>↗</b>
+        </button>
+        <em>No wallet required · sound on</em>
+      </div>
+    </div>
+  );
+}
+
 function HomeView({
   challengeBlock,
   level,
@@ -149,57 +204,45 @@ function HomeView({
   loading: boolean;
   onPlay: () => void;
 }) {
-  const previewPieces = useMemo(() => {
-    if (!level) return [];
-    return createGame({
-      blockHash: level.source.hash || FALLBACK_BLOCK_HASH,
-      transactions: levelToSimulationTransactions(level),
-      pieceLimit: 6,
-    }).pieces.slice(0, 4);
-  }, [level]);
-  const playLabel = challengeBlock
-    ? `Play challenge #${numberLabel(challengeBlock)}`
-    : "Start jam";
-
   return (
-    <main className="home-shell">
+    <main className="home-shell rhythm-home">
       <Header />
-      <section className="arcade-home">
-        <div className="arcade-brief">
+      <section className="arcade-home rhythm-arcade-home">
+        <div className="arcade-brief rhythm-brief">
           <p className="eyebrow">
-            The daily block packing game
-            <span> / Base 8453</span>
+            The live Base rhythm game
+            <span> / 120 BPM</span>
           </p>
           <h1>
             JAM
             <br />
-            THE BLOCK.
+            THE CHAIN.
           </h1>
           <p className="hero-deck">
-            Real Base transactions become one shared set of shapes. You get
-            60 seconds and one undo to pack them tighter than everyone else.
+            Real Base transactions become notes. Jump between four instrument
+            rails and capture each stem before its block seals.
           </p>
           <div className="ready-block" aria-live="polite">
-            <span>Now pressing</span>
+            <span>Now sequencing</span>
             <strong>
               {level
                 ? `Block ${numberLabel(level.source.number)}`
                 : levelError
-                  ? "Practice press available"
+                  ? "Practice feed available"
                   : "Reading Base…"}
             </strong>
             <small>
               {level
-                ? `${level.pieces.length} transaction pieces`
-                : "Cutting the daily bag"}
+                ? `${level.pieces.length} transaction signals`
+                : "Quantizing the latest blocks"}
             </small>
           </div>
         </div>
 
-        <section className="ready-stage" aria-label="Daily Base block game">
+        <section className="ready-stage rhythm-ready-stage">
           <div className="ready-stage__top">
             <div>
-              <span>Live plate</span>
+              <span>Live sequencer</span>
               <strong>
                 {level
                   ? `#${numberLabel(level.source.number)}`
@@ -210,50 +253,17 @@ function HomeView({
               className={`ready-rank ${level?.ranked ? "ready-rank--ranked" : ""}`}
             >
               <i />
-              {level?.ranked ? "Ranked Base block" : "Practice capable"}
+              {level?.ranked ? "Canonical Base data" : "Practice capable"}
             </span>
           </div>
-
-          <div className="home-board-preview" data-testid="home-board-preview">
-            <div className="home-board-grid" aria-hidden>
-              {Array.from({ length: 100 }, (_, index) => (
-                <span key={index} />
-              ))}
-            </div>
-            <div className="home-board-ghost" aria-hidden>
-              {previewPieces[0] ? (
-                <MiniPiece piece={previewPieces[0]} />
-              ) : (
-                <div className="preview-cutting">
-                  <i />
-                  <i />
-                  <i />
-                </div>
-              )}
-            </div>
-            <div className="board-start">
-              <span>
-                {loading
-                  ? "Reading the latest Base block"
-                  : levelError
-                    ? "Base paused · recovery is ready"
-                    : "Your daily bag is cut"}
-              </span>
-              <button
-                className="button button--primary"
-                disabled={loading}
-                onClick={onPlay}
-                type="button"
-              >
-                <strong>{loading ? "Loading Base…" : playLabel}</strong>
-                <b aria-hidden>↗</b>
-              </button>
-              <small>No wallet required</small>
-            </div>
-          </div>
-
+          <HomeMixPreview
+            challengeBlock={challengeBlock}
+            level={level}
+            loading={loading}
+            onPlay={onPlay}
+          />
           <div className="ready-stage__bottom">
-            <span>Tap a cell to press · rotate · place · spill</span>
+            <span>A / D switch rails · J K L hit · M mute</span>
             <a
               href={level?.source.explorerUrl ?? "https://basescan.org"}
               rel="noreferrer"
@@ -264,47 +274,39 @@ function HomeView({
           </div>
         </section>
 
-        <aside className="ready-queue">
-          <div className="ready-timer" aria-label="60 second game">
-            <span>60</span>
-            <small>seconds to pack</small>
+        <aside className="ready-queue rhythm-queue">
+          <div className="ready-timer" aria-label="30 second live set">
+            <span>{RHYTHM_RUN_SECONDS}</span>
+            <small>seconds / 15 Base bars</small>
           </div>
-          <p className="eyebrow">Next from the block</p>
-          <div className="next-stack">
-            {Array.from({ length: 3 }, (_, index) => {
-              const piece = previewPieces[index + 1];
-              return (
-                <div className="next-piece" key={piece?.id ?? index}>
-                  <small>TX {String(index + 1).padStart(2, "0")}</small>
-                  {piece ? (
-                    <MiniPiece piece={piece} />
-                  ) : (
-                    <span className="next-piece__loading" />
-                  )}
-                </div>
-              );
-            })}
+          <p className="eyebrow">Four rails / one mix</p>
+          <div className="stem-stack">
+            {RHYTHM_LANES.map((lane, index) => (
+              <div key={lane.id}>
+                <i style={{ background: lane.color }} />
+                <small>0{index + 1}</small>
+                <strong>{lane.name}</strong>
+              </div>
+            ))}
           </div>
           <div className="ready-rules">
-            <span>Same block</span>
-            <span>Same bag</span>
-            <span>One undo</span>
+            <span>Same blocks</span>
+            <span>Same chart</span>
+            <span>Your timing</span>
           </div>
         </aside>
 
-        <div className="daily-poster" aria-label="Daily BASE JAM press sheet">
+        <div className="daily-poster rhythm-poster" aria-label="BASE JAM art">
           <Image
             alt=""
             fill
             priority
-            sizes="(max-width: 800px) 92vw, 45vw"
+            sizes="(max-width: 800px) 92vw, 28vw"
             src="/art/base-jam-riso.png"
           />
           <div className="art-stamp">
             <span>{level ? numberLabel(level.source.number) : "BASE"}</span>
-            <small>
-              {level?.ranked ? "canonical block" : "practice ready"}
-            </small>
+            <small>{level?.ranked ? "live signal" : "practice ready"}</small>
           </div>
         </div>
       </section>
@@ -312,7 +314,7 @@ function HomeView({
       <details className="field-guide">
         <summary>
           <span>Field guide</span>
-          <strong>How to jam a block</strong>
+          <strong>How to play the chain</strong>
           <b aria-hidden>+</b>
         </summary>
         <div className="steps">
@@ -320,24 +322,24 @@ function HomeView({
             <span>01</span>
             <h2>Read the block.</h2>
             <p>
-              Gas, calldata, fees, and value shape each transaction tile. No
-              invented level data is passed off as ranked.
+              Each two-second bar is a confirmed Base block. Transaction hash,
+              calldata, gas, and fees decide the notes.
             </p>
           </article>
           <article>
             <span>02</span>
-            <h2>Pack it clean.</h2>
+            <h2>Capture a stem.</h2>
             <p>
-              Move the ghost, rotate the shape, and press it into a 10×10
-              block. Full lines and tight edges score more.
+              Switch to a rail, then hit its three-note phrase with J, K, and
+              L. A clean phrase brings that instrument into the mix.
             </p>
           </article>
           <article>
             <span>03</span>
-            <h2>Seal your jam.</h2>
+            <h2>Keep it alive.</h2>
             <p>
-              Your inputs are replayed by the server. Share the verified
-              mosaic and challenge somebody on the exact same block.
+              Captured stems play for four bars. Move with the chain, rebuild
+              the mix, and leave with a block-by-block performance receipt.
             </p>
           </article>
         </div>
@@ -345,7 +347,7 @@ function HomeView({
 
       <footer className="site-footer">
         <strong>BASE JAM / 8453</strong>
-        <span>Built from Base block data. Game state is offchain by design.</span>
+        <span>Live chain data. Procedural audio. Local beta scoring.</span>
         <a href="https://base.org" rel="noreferrer" target="_blank">
           Base ↗
         </a>
@@ -354,346 +356,331 @@ function HomeView({
   );
 }
 
-function LoadingView({ message }: { message: string }) {
+function LoadingView() {
   return (
     <main className="stage-shell">
       <Header mode="loading" />
-      <section className="loading-press">
+      <section className="loading-press rhythm-loading">
         <div className="press-mark">
           <span />
           <span />
           <span />
           <span />
         </div>
-        <p className="eyebrow">Preparing the plate</p>
-        <h1>{message}</h1>
-        <p>Fetching one immutable Base block and cutting its transactions.</p>
+        <p className="eyebrow">Building the live set</p>
+        <h1>SYNCING 15 BARS.</h1>
+        <p>
+          Quantizing confirmed Base transactions into a 120 BPM rhythm chart.
+        </p>
       </section>
     </main>
   );
 }
 
 function GameView({
-  level,
+  audioContext,
+  chart,
   onComplete,
-  onReady,
-  seconds,
 }: {
-  level: LevelManifestV1;
-  onComplete: (state: GameState, image: string | null) => void;
-  onReady: () => void;
-  seconds: number;
+  audioContext: AudioContext | null;
+  chart: RhythmChart;
+  onComplete: (state: RhythmState, image: string | null) => void;
 }) {
-  const controllerRef = useRef<BaseJamGameController | null>(null);
-  const readyRef = useRef(false);
-  const [state, setState] = useState<GameState | null>(null);
+  const controllerRef = useRef<BaseJamRhythmController | null>(null);
+  const [state, setState] = useState<RhythmState | null>(null);
   const [notice, setNotice] = useState(
-    "Tap a cell to press · R rotates · Space places",
+    "A / D switch rails · J K L hit the three note columns",
   );
-  const transactions = useMemo(
-    () => levelToSimulationTransactions(level),
-    [level],
-  );
-
+  const [muted, setMuted] = useState(false);
   const handleComplete = useCallback(
-    (finished: GameState) => {
-      onComplete(finished, controllerRef.current?.capture() ?? null);
+    (finished: RhythmState, image: string | null) => {
+      onComplete(finished, image);
     },
     [onComplete],
   );
-  const handleInvalid = useCallback((message: string) => {
+  const handleReady = useCallback(() => {
+    setNotice("Follow the pulse · complete a phrase to capture its stem");
+  }, []);
+  const handleState = useCallback((next: RhythmState) => {
+    setState(next);
+  }, []);
+  const handleFeedback = useCallback((message: string) => {
     setNotice(message);
   }, []);
-  const handleState = useCallback(
-    (nextState: GameState) => {
-      if (!readyRef.current) {
-        readyRef.current = true;
-        onReady();
-      }
-      setState(nextState);
-      const piece = currentPiece(nextState);
-      setNotice(
-        piece
-          ? `${piece.kind.replaceAll("_", " ")} · ${piece.cells.length} cells`
-          : "Sealing your jam…",
-      );
-    },
-    [onReady],
-  );
+  const handleMuted = useCallback((next: boolean) => {
+    setMuted(next);
+  }, []);
 
-  useEffect(() => {
-    if (seconds <= 0) {
-      controllerRef.current?.finish();
-    }
-  }, [seconds]);
-
-  const piece = state ? currentPiece(state) : null;
-  const percent = state ? packedPercentage(state) : 0;
-  const progress = state
-    ? Math.round((state.cursor / Math.max(state.pieces.length, 1)) * 100)
+  const currentBar = state?.currentBar ?? 0;
+  const elapsed = (state?.currentStep ?? 0) * RHYTHM_STEP_SECONDS;
+  const remaining = Math.max(0, Math.ceil(chart.durationSeconds - elapsed));
+  const accuracy = state ? rhythmAccuracy(state) : 0;
+  const progress = Math.min(100, (elapsed / chart.durationSeconds) * 100);
+  const activeStems = state
+    ? state.capturedUntilBar.filter((until) => until > currentBar).length
     : 0;
+  const bar = chart.bars[currentBar] ?? chart.bars[0];
+
+  function hit(column: RhythmColumn) {
+    controllerRef.current?.hit(column);
+  }
 
   return (
-    <main className="game-shell">
+    <main className="game-shell rhythm-game-shell">
       <Header mode="playing" />
-      <section className="game-layout">
-        <aside className="game-brief">
-          <p className="eyebrow">Live plate</p>
-          {level.source.kind === "base" ? (
-            <>
-              <h1>Block {numberLabel(level.source.number)}</h1>
-              <a
-                href={level.source.explorerUrl}
-                rel="noreferrer"
-                target="_blank"
-              >
-                {shortHash(level.source.hash)} ↗
-              </a>
-            </>
-          ) : (
-            <>
-              <h1>Practice plate</h1>
-              <span className="game-source">{practiceSourceLabel(level)}</span>
-            </>
-          )}
+      <section className="rhythm-game-layout">
+        <aside className="rhythm-hud">
+          <div className="rhythm-hud__block">
+            <p className="eyebrow">Live mix / bar {currentBar + 1}</p>
+            <h1>BASE #{numberLabel(bar.blockNumber)}</h1>
+            <a href={bar.explorerUrl} rel="noreferrer" target="_blank">
+              {shortHash(bar.blockHash)} ↗
+            </a>
+          </div>
           <dl>
             <div>
-              <dt>Packed</dt>
-              <dd>{percent}%</dd>
-            </div>
-            <div>
               <dt>Score</dt>
-              <dd>{state?.score.total.toLocaleString() ?? "0"}</dd>
+              <dd>{state?.score.toLocaleString() ?? "0"}</dd>
             </div>
             <div>
-              <dt>Piece</dt>
-              <dd>
-                {state?.cursor ?? 0}/{state?.pieces.length ?? 24}
-              </dd>
+              <dt>Combo</dt>
+              <dd>{state?.combo ?? 0}×</dd>
+            </div>
+            <div>
+              <dt>Stems</dt>
+              <dd>{activeStems}/4</dd>
+            </div>
+            <div>
+              <dt>Accuracy</dt>
+              <dd>{accuracy}%</dd>
             </div>
           </dl>
-          <div className="game-progress">
+          <div className="rhythm-progress">
             <span style={{ width: `${progress}%` }} />
           </div>
-          <p className="rank-state">
-            <i className={level.ranked ? "ranked" : ""} />
-            {level.ranked ? "Replay verified" : "Unranked practice"}
+          <p className="rhythm-chain-state">
+            <i className={chart.ranked ? "ranked" : ""} />
+            {chart.ranked ? "Confirmed Base sequence" : "Practice sequence"}
           </p>
         </aside>
 
-        <div className="board-wrap">
-          <div className={`timer ${seconds <= 10 ? "timer--urgent" : ""}`}>
-            <span>{seconds.toString().padStart(2, "0")}</span>
+        <section className="rhythm-stage">
+          <div className={`rhythm-clock ${remaining <= 5 ? "is-urgent" : ""}`}>
+            <span>{remaining.toString().padStart(2, "0")}</span>
             <small>seconds</small>
           </div>
-          <BaseJamBoard
-            blockHash={level.source.hash || FALLBACK_BLOCK_HASH}
+          <BaseJamRhythmBoard
+            audioContext={audioContext}
+            chart={chart}
             controllerRef={controllerRef}
             onComplete={handleComplete}
-            onInvalid={handleInvalid}
+            onFeedback={handleFeedback}
+            onMutedChange={handleMuted}
+            onReady={handleReady}
             onStateChange={handleState}
-            transactions={transactions}
           />
-          <p className="game-notice" aria-live="polite">
+          <p className="rhythm-notice" aria-live="polite">
             {notice}
           </p>
-        </div>
+        </section>
 
-        <aside className="piece-controls">
-          <p className="eyebrow">In the press</p>
-          <div className="piece-preview" aria-label="Current shape">
-            {piece ? (
-              <MiniPiece piece={piece} />
-            ) : (
-              <span className="piece-loading">Cutting…</span>
-            )}
+        <aside className="rhythm-lane-panel">
+          <p className="eyebrow">Instrument rails</p>
+          <div className="rhythm-lane-buttons">
+            {RHYTHM_LANES.map((lane, index) => {
+              const selected = (state?.selectedLane ?? 0) === lane.id;
+              const active =
+                (state?.capturedUntilBar[lane.id] ?? 0) > currentBar;
+              return (
+                <button
+                  aria-pressed={selected}
+                  className={`${selected ? "is-selected" : ""} ${active ? "is-active" : ""}`}
+                  key={lane.id}
+                  onClick={() => controllerRef.current?.selectLane(lane.id)}
+                  style={{ "--lane-color": lane.color } as CSSProperties}
+                  type="button"
+                >
+                  <small>0{index + 1}</small>
+                  <strong>{lane.name}</strong>
+                  <span>{active ? "LIVE" : selected ? "ARMED" : "OFF"}</span>
+                </button>
+              );
+            })}
           </div>
           <button
-            className="control-button control-button--rotate"
-            onClick={() => controllerRef.current?.rotate()}
+            className="rhythm-mute"
+            onClick={() => controllerRef.current?.toggleMuted()}
             type="button"
           >
-            <span>Rotate</span>
-            <kbd>R</kbd>
-          </button>
-          <button
-            className="control-button"
-            onClick={() => controllerRef.current?.place()}
-            type="button"
-          >
-            <span>Press here</span>
-            <kbd>Space</kbd>
-          </button>
-          <button
-            className="control-button"
-            disabled={!state?.undoAvailable || !state.undoCheckpoint}
-            onClick={() => controllerRef.current?.undo()}
-            type="button"
-          >
-            <span>Undo once</span>
-            <kbd>Z</kbd>
-          </button>
-          <button
-            className="control-button control-button--quiet"
-            onClick={() => controllerRef.current?.spill()}
-            type="button"
-          >
-            <span>Spill piece</span>
-            <kbd>X</kbd>
+            {muted ? "Sound off · unmute" : "Sound on · mute"}
+            <kbd>M</kbd>
           </button>
         </aside>
+
+        <div className="rhythm-control-dock" aria-label="Rhythm controls">
+          <button
+            aria-label="Previous instrument rail"
+            onClick={() => controllerRef.current?.moveLane(-1)}
+            type="button"
+          >
+            <b>←</b>
+            <small>A</small>
+          </button>
+          {(["J", "K", "L"] as const).map((key, column) => (
+            <button
+              className="rhythm-hit-button"
+              key={key}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                hit(column as RhythmColumn);
+              }}
+              type="button"
+            >
+              <b>{key}</b>
+              <small>HIT {column + 1}</small>
+            </button>
+          ))}
+          <button
+            aria-label="Next instrument rail"
+            onClick={() => controllerRef.current?.moveLane(1)}
+            type="button"
+          >
+            <b>→</b>
+            <small>D</small>
+          </button>
+        </div>
       </section>
     </main>
   );
 }
 
-function MiniPiece({ piece }: { piece: Piece }) {
-  const maxX = Math.max(...piece.cells.map((cell) => cell.x)) + 1;
-  const maxY = Math.max(...piece.cells.map((cell) => cell.y)) + 1;
-  return (
-    <div
-      className="mini-piece"
-      style={{
-        gridTemplateColumns: `repeat(${maxX}, 1fr)`,
-        gridTemplateRows: `repeat(${maxY}, 1fr)`,
-      }}
-    >
-      {piece.cells.map((cell) => (
-        <span
-          key={`${cell.x}-${cell.y}`}
-          style={{
-            background: pieceColor(piece, 0),
-            gridColumn: cell.x + 1,
-            gridRow: cell.y + 1,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+function ResultReceipt({
+  chart,
+  state,
+}: {
+  chart: RhythmChart;
+  state: RhythmState;
+}) {
+  const result = rhythmResult(state);
+  const receiptNotes = chart.notes.filter((_, index) => index % 3 === 0);
 
-function ResultMosaic({ state }: { state: GameState }) {
   return (
-    <div className="result-mosaic" aria-label="Your sealed transaction mosaic">
-      {state.board.map((pieceId, index) => {
-        const pieceIndex = state.pieces.findIndex(
-          (candidate) => candidate.id === pieceId,
-        );
-        const piece = state.pieces[pieceIndex];
-        return (
-          <span
-            key={index}
-            style={{
-              background:
-                piece && pieceId ? pieceColor(piece, pieceIndex) : "transparent",
-            }}
-          />
-        );
-      })}
+    <div className="mix-receipt" aria-label="Your Base mix receipt">
+      <div className="mix-receipt__top">
+        <span>BASE JAM</span>
+        <small>LIVE MIX / 8453</small>
+      </div>
+      <div className="mix-receipt__wave" aria-hidden>
+        {receiptNotes.map((note) => {
+          const judged = state.noteResults[note.id];
+          return (
+            <i
+              className={judged === "perfect" || judged === "good" ? "is-hit" : ""}
+              key={note.id}
+              style={
+                {
+                  "--bar-height": `${20 + Math.round(note.velocity * 80)}%`,
+                  "--bar-color": RHYTHM_LANES[note.lane].color,
+                } as CSSProperties
+              }
+            />
+          );
+        })}
+      </div>
+      <div className="mix-receipt__blocks">
+        {chart.bars.map((bar, index) => (
+          <span key={`${bar.blockHash}-${index}`}>
+            {index % 3 === 0 ? numberLabel(bar.blockNumber) : "•"}
+          </span>
+        ))}
+      </div>
+      <div className="mix-receipt__bottom">
+        <strong>{result.accuracy}%</strong>
+        <div>
+          <span>{chart.bars.length} CONFIRMED BARS</span>
+          <small>{state.captures} stem captures</small>
+        </div>
+        <b>{result.grade}</b>
+      </div>
     </div>
   );
 }
 
 function ResultView({
-  level,
+  chart,
   onRetry,
-  shareToken,
   state,
-  submitError,
-  verifying,
 }: {
-  level: LevelManifestV1;
+  chart: RhythmChart;
   onRetry: () => void;
-  shareToken: string | null;
-  state: GameState;
-  submitError: string | null;
-  verifying: boolean;
+  state: RhythmState;
 }) {
-  const [shareState, setShareState] = useState("Challenge a friend");
-  const percent = packedPercentage(state);
-  const shareUrl = shareToken
-    ? `${window.location.origin}/run/${shareToken}`
-    : window.location.href;
+  const [shareState, setShareState] = useState("Share the mix");
+  const result = rhythmResult(state);
 
   async function share() {
-    const text = `I jammed ${percent}% of Base block ${level.source.number}. Beat this plate.`;
+    const first = chart.bars[0]?.blockNumber;
+    const last = chart.bars.at(-1)?.blockNumber;
+    const text = `I scored ${state.score.toLocaleString()} on BASE JAM — ${result.accuracy}% timing across Base blocks ${first}–${last}.`;
+    const url = window.location.origin;
     try {
       if (navigator.share) {
-        await navigator.share({ title: "My Base Jam", text, url: shareUrl });
+        await navigator.share({ title: "My BASE JAM mix", text, url });
       } else {
-        await navigator.clipboard.writeText(`${text} ${shareUrl}`);
+        await navigator.clipboard.writeText(`${text} ${url}`);
       }
-      setShareState("Challenge ready ✓");
+      setShareState("Mix link ready ✓");
     } catch {
       setShareState("Share cancelled");
     }
   }
 
   return (
-    <main className="result-shell">
+    <main className="result-shell rhythm-result-shell">
       <Header mode="result" />
-      <section className="result-layout">
+      <section className="result-layout rhythm-result-layout">
         <div className="result-copy">
-          <p className="eyebrow">Plate sealed / Base {level.source.number}</p>
-          <h1>
-            {state.sealGrade === "F" ? "THE BLOCK SPILLED." : "THAT’LL PRESS."}
-          </h1>
+          <p className="eyebrow">Set complete / 15 Base blocks</p>
+          <h1>{result.grade === "F" ? "FIND THE PULSE." : "MIX SEALED."}</h1>
           <p>
-            {state.sealGrade === "F"
-              ? "Not enough blockspace made it onto the plate. The same bag is waiting."
-              : `${percent}% packed with ${state.spilled.length} spill${state.spilled.length === 1 ? "" : "s"}. Your layout is now the challenge.`}
+            You brought {state.captures} stems into the session and held a
+            {` ${state.maxCombo}×`} max combo. The chain supplied the chart;
+            your timing made the mix.
           </p>
-          <div className="result-stats">
+          <div className="result-stats rhythm-result-stats">
             <div>
               <span>Grade</span>
-              <strong>{state.sealGrade}</strong>
+              <strong>{result.grade}</strong>
             </div>
             <div>
-              <span>Packed</span>
-              <strong>{percent}%</strong>
+              <span>Accuracy</span>
+              <strong>{result.accuracy}%</strong>
             </div>
             <div>
               <span>Score</span>
-              <strong>{state.score.total.toLocaleString()}</strong>
+              <strong>{state.score.toLocaleString()}</strong>
+            </div>
+            <div>
+              <span>Max combo</span>
+              <strong>{state.maxCombo}×</strong>
             </div>
           </div>
           <div className="result-actions">
-            <button
-              className="button button--primary"
-              disabled={verifying}
-              onClick={share}
-              type="button"
-            >
-              {verifying ? "Verifying replay…" : shareState}
+            <button className="button button--primary" onClick={share} type="button">
+              {shareState}
               <b aria-hidden>↗</b>
             </button>
             <button className="button button--ink" onClick={onRetry} type="button">
-              JAM again
+              Run it back
             </button>
           </div>
-          <p className="verification-state" aria-live="polite">
-            {verifying
-              ? "Replaying every input server-side…"
-              : shareToken
-                ? "✓ Verified replay · share score cannot be edited"
-                : submitError ?? "Local result · share verification unavailable"}
+          <p className="verification-state">
+            {chart.ranked
+              ? "✓ Canonical Base data · local beta score"
+              : "Practice data · local beta score"}
           </p>
         </div>
-        <div className="result-card">
-          <div className="result-card__top">
-            <span>BASE JAM</span>
-            <small>BASE / 8453</small>
-          </div>
-          <ResultMosaic state={state} />
-          <div className="result-card__bottom">
-            <strong>{percent}%</strong>
-            <div>
-              <span>BLOCK {numberLabel(level.source.number)}</span>
-              <small>{shortHash(level.source.hash)}</small>
-            </div>
-            <b>{state.sealGrade}</b>
-          </div>
-        </div>
+        <ResultReceipt chart={chart} state={state} />
       </section>
     </main>
   );
@@ -713,14 +700,14 @@ function ErrorView({
       <Header mode="error" />
       <section className="error-card">
         <span className="error-code">RPC / PAUSE</span>
-        <h1>THE PRESS LOST BASE.</h1>
+        <h1>THE FEED LOST BASE.</h1>
         <p>{message}</p>
         <div>
           <button className="button button--primary" onClick={onRetry} type="button">
             Retry Base
           </button>
           <button className="button button--ink" onClick={onPractice} type="button">
-            Use practice plate
+            Use practice mix
           </button>
         </div>
       </section>
@@ -731,17 +718,11 @@ function ErrorView({
 export function BaseJamApp() {
   const [phase, setPhase] = useState<Phase>("home");
   const [level, setLevel] = useState<LevelManifestV1 | null>(null);
-  const [ticket, setTicket] = useState<string | null>(null);
-  const [seconds, setSeconds] = useState(RUN_SECONDS);
-  const [gameReady, setGameReady] = useState(false);
-  const [finishedState, setFinishedState] = useState<GameState | null>(null);
-  const [durationMs, setDurationMs] = useState(0);
-  const [shareToken, setShareToken] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [chart, setChart] = useState<RhythmChart | null>(null);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [finishedState, setFinishedState] = useState<RhythmState | null>(null);
   const [fatalError, setFatalError] = useState("Base did not answer in time.");
   const [requestedBlock, setRequestedBlock] = useState<string | null>(null);
-  const startedAt = useRef(0);
 
   useEffect(() => {
     const value = new URLSearchParams(window.location.search).get("block");
@@ -761,147 +742,93 @@ export function BaseJamApp() {
     if (levelQuery.data?.level) setLevel(levelQuery.data.level);
   }, [levelQuery.data]);
 
-  useEffect(() => {
-    if (phase !== "playing" || !gameReady) return;
-    const timer = window.setInterval(() => {
-      setSeconds((value) => Math.max(0, value - 1));
-    }, 1_000);
-    return () => window.clearInterval(timer);
-  }, [gameReady, phase]);
-
-  const issueTicket = useCallback(async (selected: LevelManifestV1) => {
-    const response = await fetch("/api/runs/start", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        levelDigest: selected.digest,
-        levelNumber: selected.source.number,
-        levelHash: selected.source.hash,
-        practice: !selected.ranked,
-      }),
-    });
-    if (!response.ok) {
-      throw new Error("The run verifier is not ready.");
-    }
-    return response.json() as Promise<StartRunResponse>;
-  }, []);
-
   const start = useCallback(
-    async (forcedLevel?: LevelManifestV1) => {
+    async (
+      forcedLevel?: LevelManifestV1,
+      forcedAudio?: AudioContext | null,
+      forcePractice = false,
+    ) => {
+      const armedAudio =
+        forcedAudio === undefined ? armRhythmAudio() : forcedAudio;
+      setAudioContext(armedAudio);
       setPhase("loading");
-      setSubmitError(null);
-      setShareToken(null);
+      setFinishedState(null);
+
       try {
-        let selected = forcedLevel ?? level;
-        if (!selected) {
-          selected = (await loadLevel(requestedBlock)).level;
-          setLevel(selected);
+        let levels: readonly LevelManifestV1[];
+        if (forcedLevel) {
+          levels = [forcedLevel];
+        } else if (requestedBlock) {
+          const selected =
+            level?.source.number === requestedBlock
+              ? level
+              : (await loadLevel(requestedBlock)).level;
+          levels = [selected];
+        } else if (forcePractice) {
+          levels = [(await loadPracticeLevel()).level];
+        } else {
+          levels = (await loadMix()).levels;
         }
-        const run = await issueTicket(selected);
-        setTicket(run.ticket);
-        setSeconds(RUN_SECONDS);
-        setGameReady(false);
+        if (levels.length === 0) {
+          throw new Error("The Base sequencer returned an empty mix.");
+        }
+        const selected = levels.at(-1) ?? levels[0];
+        setLevel(selected);
+        setChart(createRhythmChart(levels));
         setPhase("playing");
       } catch (error) {
         setFatalError(
-          error instanceof Error ? error.message : "Could not start the press.",
+          error instanceof Error ? error.message : "Could not start the mix.",
         );
         setPhase("error");
       }
     },
-    [issueTicket, level, requestedBlock],
+    [level, requestedBlock],
   );
 
-  const complete = useCallback(
-    (state: GameState) => {
-      const elapsed = Math.max(1_000, Date.now() - startedAt.current);
-      setDurationMs(elapsed);
-      setFinishedState(state);
-      setPhase("result");
-      try {
-        const best = Number(localStorage.getItem("base-jam-best") ?? "0");
-        if (state.score.total > best) {
-          localStorage.setItem("base-jam-best", String(state.score.total));
-        }
-      } catch {
-        // Storage is an enhancement; the run remains valid without it.
-      }
-    },
-    [],
-  );
-
-  const markGameReady = useCallback(() => {
-    startedAt.current = Date.now();
-    setGameReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (phase !== "result" || !finishedState || !ticket || shareToken) return;
-    const replay: GameReplay = createReplay(finishedState);
-    setVerifying(true);
-    void fetch("/api/runs/finish", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ticket, durationMs, replay }),
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          const payload = (await response
-            .json()
-            .catch(() => null)) as ApiErrorResponse | null;
-          throw new Error(
-            payload?.error?.message ?? "Replay verification failed.",
-          );
-        }
-        return response.json() as Promise<FinishRunResponse>;
-      })
-      .then((payload) => {
-        setShareToken(payload.shareToken ?? payload.token ?? null);
-      })
+  const startPractice = useCallback(() => {
+    const armedAudio = armRhythmAudio();
+    void loadPracticeLevel(requestedBlock)
+      .then(({ level: practice }) => start(practice, armedAudio, true))
       .catch((error: unknown) => {
-        setSubmitError(
-          error instanceof Error ? error.message : "Replay verification failed.",
+        setFatalError(
+          error instanceof Error
+            ? error.message
+            : "Could not prepare the practice mix.",
         );
-      })
-      .finally(() => setVerifying(false));
-  }, [durationMs, finishedState, phase, shareToken, ticket]);
-
-  const startPractice = useCallback(async () => {
-    setPhase("loading");
-    try {
-      const practice = (await loadPracticeLevel(requestedBlock)).level;
-      setLevel(practice);
-      await start(practice);
-    } catch (error) {
-      setFatalError(
-        error instanceof Error
-          ? error.message
-          : "Could not prepare the practice plate.",
-      );
-      setPhase("error");
-    }
+        setPhase("error");
+      });
   }, [requestedBlock, start]);
 
-  if (phase === "loading") return <LoadingView message="CUTTING TRANSACTIONS." />;
-  if (phase === "playing" && level) {
+  const complete = useCallback((state: RhythmState) => {
+    setFinishedState(state);
+    setPhase("result");
+    try {
+      const best = Number(localStorage.getItem("base-jam-rhythm-best") ?? "0");
+      if (state.score > best) {
+        localStorage.setItem("base-jam-rhythm-best", String(state.score));
+      }
+    } catch {
+      // Local storage is an enhancement; finishing the set never depends on it.
+    }
+  }, []);
+
+  if (phase === "loading") return <LoadingView />;
+  if (phase === "playing" && chart) {
     return (
       <GameView
-        level={level}
+        audioContext={audioContext}
+        chart={chart}
         onComplete={complete}
-        onReady={markGameReady}
-        seconds={seconds}
       />
     );
   }
-  if (phase === "result" && level && finishedState) {
+  if (phase === "result" && chart && finishedState) {
     return (
       <ResultView
-        level={level}
-        onRetry={() => void start(level)}
-        shareToken={shareToken}
+        chart={chart}
+        onRetry={() => void start()}
         state={finishedState}
-        submitError={submitError}
-        verifying={verifying}
       />
     );
   }
@@ -909,12 +836,8 @@ export function BaseJamApp() {
     return (
       <ErrorView
         message={fatalError}
-        onPractice={() => void startPractice()}
-        onRetry={() => {
-          void levelQuery.refetch().then((result) => {
-            if (result.data?.level) void start(result.data.level);
-          });
-        }}
+        onPractice={startPractice}
+        onRetry={() => void start()}
       />
     );
   }

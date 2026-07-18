@@ -1,7 +1,7 @@
 {
-  "name": "BASE JAM — Pack a real Base block",
+  "name": "BASE JAM — Play the chain",
   "short_name": "BASE JAM",
-  "description": "A one-thumb packing game generated from real Base transactions.",
+  "description": "A four-rail rhythm game generated from confirmed Base blocks.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f4eedb",

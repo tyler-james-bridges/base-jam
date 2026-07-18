@@ -5,10 +5,7 @@ const blockHash =
 const digest =
   "0x6cbf2efda67befa88d7d447669bfb3fafb3cb63cfe5f5af2b87ccb827564aebb";
 
-// Keep the browser smoke fixture intentionally small. The full 24-piece
-// simulation is covered by unit tests; this fixture only needs enough pieces
-// to exercise the complete browser flow on slow shared CI runners.
-const pieces = Array.from({ length: 6 }, (_, index) => ({
+const pieces = Array.from({ length: 12 }, (_, index) => ({
   id: String(index),
   hash: `0x${(index + 1).toString(16).padStart(64, "0")}`,
   type: "0x2",
@@ -45,6 +42,19 @@ const fixtureLevel = {
   generatedAt: "2026-07-17T20:00:00.000Z",
 };
 
+const practiceLevel = {
+  ...fixtureLevel,
+  ranked: false,
+  source: {
+    ...fixtureLevel.source,
+    kind: "practice",
+    number: "practice-2026-07-18",
+    explorerUrl: "https://basescan.org",
+    confirmations: 0,
+  },
+  fallbackReason: "Test practice mix.",
+};
+
 async function mockPlayableApi(page: Page) {
   await page.route("**/api/levels/**", async (route) => {
     await route.fulfill({
@@ -52,133 +62,109 @@ async function mockPlayableApi(page: Page) {
       body: JSON.stringify({ level: fixtureLevel }),
     });
   });
-  await page.route("**/api/runs/start", async (route) => {
+  await page.route("**/api/mixes/latest", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
-        ticket: "signed-test-ticket",
-        expiresAt: "2026-07-17T20:15:00.000Z",
-        ranked: true,
-      }),
-    });
-  });
-  await page.route("**/api/runs/finish", async (route) => {
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        verified: true,
-        shareToken: "verified-test-token",
+        levels: Array.from({ length: 15 }, () => fixtureLevel),
       }),
     });
   });
 }
 
-test("home explains the game and loads a Base level", async ({ page }) => {
+test("home makes the live Base rhythm game the focal point", async ({ page }) => {
   await mockPlayableApi(page);
   await page.goto("/");
 
-  await expect(page).toHaveTitle(/BASE JAM/);
+  await expect(page).toHaveTitle(/Play the chain/);
   await expect(
-    page.getByRole("heading", { name: "JAM THE BLOCK." }),
+    page.getByRole("heading", { name: "JAM THE CHAIN." }),
   ).toBeVisible();
   await expect(page.getByText("Block 48,725,123")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Start jam/ }),
+    page.getByRole("button", { name: /Drop into the set/ }),
   ).toBeEnabled();
 
-  const boardPreview = page.getByTestId("home-board-preview");
+  const preview = page.getByTestId("home-mix-preview");
   const dailyPoster = page.locator(".daily-poster");
-  const posterImage = dailyPoster.locator("img");
-  await expect(boardPreview).toBeVisible();
-  await expect(posterImage).toHaveCSS("object-fit", "contain");
+  await expect(preview).toBeVisible();
   await expect(page.locator(".field-guide")).not.toHaveAttribute("open", "");
 
-  const boardBox = await boardPreview.boundingBox();
+  const previewBox = await preview.boundingBox();
   const posterBox = await dailyPoster.boundingBox();
   const viewport = page.viewportSize();
-  expect(boardBox).not.toBeNull();
+  expect(previewBox).not.toBeNull();
   expect(posterBox).not.toBeNull();
   expect(viewport).not.toBeNull();
-  expect(boardBox!.width / boardBox!.height).toBeCloseTo(1, 1);
-  expect(boardBox!.width).toBeGreaterThanOrEqual(
-    viewport!.width <= 760 ? viewport!.width * 0.82 : viewport!.width * 0.35,
+  expect(previewBox!.width).toBeGreaterThan(
+    viewport!.width <= 760 ? viewport!.width * 0.82 : viewport!.width * 0.45,
   );
-  expect(boardBox!.y).toBeLessThan(viewport!.height);
-  expect(posterBox!.y).toBeGreaterThan(boardBox!.y);
+  expect(previewBox!.y).toBeLessThan(viewport!.height);
+  expect(previewBox!.width / previewBox!.height).toBeGreaterThan(1.15);
   expect(posterBox!.width / posterBox!.height).toBeCloseTo(1.5, 1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    viewport!.width,
+  );
 });
 
-test("guest can enter the game and finish an unfilled plate", async ({
+test("guest can enter the set and use keyboard or touch controls", async ({
   page,
 }) => {
   await mockPlayableApi(page);
   await page.goto("/");
-  await page.getByRole("button", { name: /Start jam/ }).click();
+  await page.getByRole("button", { name: /Drop into the set/ }).click();
 
-  await expect(page.getByTestId("base-jam-board")).toBeVisible();
+  await expect(page.getByTestId("base-jam-rhythm")).toBeVisible();
   await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator(".timer span")).toHaveText(/^(5[0-9]|60)$/);
+  await expect(page.locator(".rhythm-clock span")).toHaveText(/^(2[89]|30)$/);
+  await expect(page.locator(".rhythm-hit-button").first()).toBeVisible();
 
-  for (let index = 0; index < pieces.length; index += 1) {
-    await page.getByRole("button", { name: /Spill piece/ }).click();
-  }
-
+  await page.keyboard.press("KeyD");
   await expect(
-    page.getByRole("heading", { name: "THE BLOCK SPILLED." }),
-  ).toBeVisible();
-  await expect(page.getByText(/Verified replay/)).toBeVisible();
-  await expect(page.getByRole("button", { name: /JAM again/ })).toBeVisible();
+    page.locator(".rhythm-lane-buttons button[aria-pressed='true']"),
+  ).toContainText("BASS");
+  await page.locator(".rhythm-hit-button").nth(1).click();
+  await page.getByRole("button", { name: /Sound on/i }).click();
+  await expect(page.getByRole("button", { name: /Sound off/i })).toBeVisible();
+
+  const viewport = page.viewportSize();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    viewport!.width,
+  );
 });
 
-test("specific challenge deep link keeps the challenged block", async ({
-  page,
-}) => {
+test("specific block deep link keeps the challenged source", async ({ page }) => {
   await mockPlayableApi(page);
   await page.goto("/?block=48725123");
-  await expect(
-    page.getByRole("button", { name: /Play challenge #48,725,123/ }),
-  ).toBeVisible();
+  await expect(page.getByText("Challenge #48,725,123")).toBeVisible();
+  await page.getByRole("button", { name: /Drop into the set/ }).click();
+  await expect(page.getByRole("heading", { name: "BASE #48,725,123" })).toBeVisible();
 });
 
-test("RPC failure produces an actionable recovery state", async ({ page }) => {
+test("RPC failure offers a playable, honestly labeled practice mix", async ({
+  page,
+}) => {
   await page.route("**/api/levels/latest", async (route) => {
-    await route.fulfill({
-      status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({
-        error: { code: "BASE_UNAVAILABLE", message: "Base timed out." },
-      }),
-    });
+    await route.fulfill({ status: 503, body: "{}" });
   });
-  await page.route("**/api/runs/start", async (route) => {
+  await page.route("**/api/mixes/latest", async (route) => {
+    await route.fulfill({ status: 503, body: "{}" });
+  });
+  await page.route("**/api/levels/practice**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({
-        ticket: "signed-practice-ticket",
-        expiresAt: "2026-07-17T20:15:00.000Z",
-        ranked: false,
-      }),
+      body: JSON.stringify({ level: practiceLevel }),
     });
   });
-  await page.goto("/");
-  await page.getByRole("button", { name: /Start jam/ }).click();
 
+  await page.goto("/");
+  await page.getByRole("button", { name: /Drop into the set/ }).click();
   await expect(
-    page.getByRole("heading", { name: "THE PRESS LOST BASE." }),
+    page.getByRole("heading", { name: "THE FEED LOST BASE." }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Retry Base" })).toBeVisible();
 
-  const practiceRunRequest = page.waitForRequest("**/api/runs/start");
-  await page.getByRole("button", { name: "Use practice plate" }).click();
-  await expect.poll(async () => (await practiceRunRequest).postDataJSON()).toMatchObject({
-    practice: true,
-    levelNumber: expect.stringMatching(/^practice-\d{4}-\d{2}-\d{2}$/),
-  });
-  await expect(page.getByTestId("base-jam-board")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Practice plate" }),
-  ).toBeVisible();
-  await expect(page.getByText("Unranked practice")).toHaveText(
-    "Unranked practice",
-  );
+  await page.getByRole("button", { name: "Use practice mix" }).click();
+  await expect(page.getByTestId("base-jam-rhythm")).toBeVisible();
+  await expect(page.getByText("Practice sequence")).toBeVisible();
 });

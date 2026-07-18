@@ -62,6 +62,11 @@ export interface LevelApiResponse {
   readonly warning?: string;
 }
 
+export interface MixApiResponse {
+  readonly levels: readonly LevelManifestV1[];
+  readonly warning?: string;
+}
+
 export interface RunTicketPayloadV1 {
   readonly version: 1;
   readonly purpose: "run-ticket";

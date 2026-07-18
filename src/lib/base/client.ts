@@ -175,6 +175,41 @@ export async function fetchLatestBaseLevel(
   return manifestForBlock(client, blockNumber, tip, options);
 }
 
+export async function fetchLatestBaseLevels(
+  count = 15,
+  options: FetchLevelOptions = {},
+): Promise<readonly LevelManifestV1[]> {
+  if (!Number.isInteger(count) || count < 1 || count > 15) {
+    throw new RangeError("Base rhythm mixes need between 1 and 15 blocks.");
+  }
+
+  const client = baseClient();
+  const tip = await client.getBlockNumber({ cacheTime: 0 });
+  const latestSafe = tip > SAFE_BLOCK_DEPTH ? tip - SAFE_BLOCK_DEPTH : ZERO;
+  const earliest =
+    latestSafe >= BigInt(count - 1)
+      ? latestSafe - BigInt(count - 1)
+      : ZERO;
+  const blockNumbers = Array.from(
+    { length: Number(latestSafe - earliest) + 1 },
+    (_, index) => earliest + BigInt(index),
+  );
+  const levels: LevelManifestV1[] = [];
+
+  for (let offset = 0; offset < blockNumbers.length; offset += 5) {
+    const batch = blockNumbers.slice(offset, offset + 5);
+    levels.push(
+      ...(await Promise.all(
+        batch.map((blockNumber) =>
+          manifestForBlock(client, blockNumber, tip, options),
+        ),
+      )),
+    );
+  }
+
+  return levels;
+}
+
 export async function fetchBaseLevel(
   blockNumber: bigint,
   options: FetchLevelOptions = {},
@@ -205,6 +240,24 @@ export async function latestLevelOrPractice(
           ? error.message
           : "Base data is temporarily unavailable. This deterministic practice level is not ranked.",
     });
+  }
+}
+
+export async function latestMixOrPractice(
+  count = 15,
+  options: FetchLevelOptions = {},
+): Promise<readonly LevelManifestV1[]> {
+  try {
+    return await fetchLatestBaseLevels(count, options);
+  } catch (error) {
+    return [
+      createPracticeManifest({
+        reason:
+          error instanceof BaseRpcConfigurationError
+            ? error.message
+            : "Base data is temporarily unavailable. This deterministic practice mix is not ranked.",
+      }),
+    ];
   }
 }
 

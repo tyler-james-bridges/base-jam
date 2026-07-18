@@ -22,14 +22,14 @@ const appUrl =
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
   title: {
-    default: "BASE JAM — Pack a real Base block",
+    default: "BASE JAM — Play the chain",
     template: "%s · BASE JAM",
   },
   description:
-    "A one-thumb packing game generated from real Base transactions. Same block. Same pieces. Your best jam.",
+    "A live rhythm game generated from confirmed Base blocks. Capture four instrument stems and turn chain activity into a 30-second mix.",
   applicationName: "BASE JAM",
   category: "game",
-  keywords: ["Base", "onchain", "game", "blockchain", "daily challenge"],
+  keywords: ["Base", "onchain", "rhythm game", "blockchain", "music game"],
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/mark.svg",
@@ -37,17 +37,17 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    title: "BASE JAM — Pack a real Base block",
+    title: "BASE JAM — Play the chain",
     description:
-      "Real Base transactions become one shared 10×10 packing challenge.",
+      "Real Base transactions become a shared four-rail rhythm challenge.",
     siteName: "BASE JAM",
     images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "BASE JAM — Pack a real Base block",
+    title: "BASE JAM — Play the chain",
     description:
-      "Real Base transactions become one shared 10×10 packing challenge.",
+      "Real Base transactions become a shared four-rail rhythm challenge.",
     images: ["/opengraph-image"],
   },
 };
