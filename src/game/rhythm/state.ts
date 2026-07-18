@@ -10,6 +10,14 @@ import {
 
 export const PERFECT_WINDOW_SECONDS = 0.072;
 export const GOOD_WINDOW_SECONDS = 0.17;
+export const FOCUS_PERFECT_WINDOW_SECONDS = 0.105;
+export const FOCUS_GOOD_WINDOW_SECONDS = 0.24;
+
+export interface RhythmTimingOptions {
+  readonly goodWindowSeconds?: number;
+  readonly perfectWindowSeconds?: number;
+  readonly punishGhostTaps?: boolean;
+}
 
 function activeCaptureTuple(
   values: readonly number[],
@@ -101,8 +109,12 @@ export function judgeRhythmHit(
   state: RhythmState,
   column: RhythmColumn,
   songTime: number,
+  options: RhythmTimingOptions = {},
 ): RhythmState {
   if (state.finished) return state;
+  const goodWindow = options.goodWindowSeconds ?? GOOD_WINDOW_SECONDS;
+  const perfectWindow =
+    options.perfectWindowSeconds ?? PERFECT_WINDOW_SECONDS;
   const candidates = chart.notes
     .filter(
       (note) =>
@@ -111,11 +123,18 @@ export function judgeRhythmHit(
         !state.noteResults[note.id],
     )
     .map((note) => ({ note, delta: songTime - note.time }))
-    .filter(({ delta }) => Math.abs(delta) <= GOOD_WINDOW_SECONDS)
+    .filter(({ delta }) => Math.abs(delta) <= goodWindow)
     .sort((left, right) => Math.abs(left.delta) - Math.abs(right.delta));
   const candidate = candidates[0];
 
   if (!candidate) {
+    if (options.punishGhostTaps === false) {
+      return {
+        ...state,
+        lastJudgement: null,
+        lastDeltaMs: null,
+      };
+    }
     return {
       ...state,
       combo: 0,
@@ -126,7 +145,7 @@ export function judgeRhythmHit(
   }
 
   const judgement: RhythmJudgement =
-    Math.abs(candidate.delta) <= PERFECT_WINDOW_SECONDS ? "perfect" : "good";
+    Math.abs(candidate.delta) <= perfectWindow ? "perfect" : "good";
   const combo = state.combo + 1;
   let next: RhythmState = {
     ...state,
@@ -159,6 +178,7 @@ export function advanceRhythmState(
   chart: RhythmChart,
   state: RhythmState,
   songTime: number,
+  goodWindowSeconds = GOOD_WINDOW_SECONDS,
 ): RhythmState {
   if (state.finished) return state;
   const boundedTime = Math.max(0, songTime);
@@ -188,7 +208,7 @@ export function advanceRhythmState(
     return (
       !next.noteResults[note.id] &&
       engagedLane === note.lane &&
-      note.time + GOOD_WINDOW_SECONDS < boundedTime
+      note.time + goodWindowSeconds < boundedTime
     );
   });
   if (expired.length > 0) {

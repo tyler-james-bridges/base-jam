@@ -20,6 +20,7 @@ export function BaseJamRhythmBoard({
   audioContext,
   chart,
   controllerRef,
+  focusMode,
   onComplete,
   onFeedback,
   onMutedChange,
@@ -37,7 +38,7 @@ export function BaseJamRhythmBoard({
         if (disposed || !parentRef.current) return;
         controllerRef.current = createBaseJamRhythmGame(
           parentRef.current,
-          { audioContext, chart },
+          { audioContext, chart, focusMode },
           {
             onComplete,
             onFeedback,
@@ -58,6 +59,7 @@ export function BaseJamRhythmBoard({
     audioContext,
     chart,
     controllerRef,
+    focusMode,
     onComplete,
     onFeedback,
     onMutedChange,

@@ -163,3 +163,11 @@ export function createRhythmChart(
     notes,
   };
 }
+
+export function rhythmFocusLane(
+  chart: RhythmChart,
+  bar: number,
+): RhythmLane {
+  const safeBar = Math.max(0, Math.floor(bar));
+  return ((chart.keyIndex + safeBar) % 4) as RhythmLane;
+}

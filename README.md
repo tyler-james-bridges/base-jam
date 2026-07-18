@@ -10,6 +10,8 @@ bar, four instrument rails, and three hit columns.
 
 - Switch among DRUMS, BASS, SYNTH, and FX with A/D or the lane buttons.
 - Hit each rail’s three-note phrase with J/K/L.
+- On phones, one-thumb focus mode changes instruments automatically and
+  replaces the desktop controls with three large HIGH/MID/LOW pads.
 - Completing a phrase captures that instrument stem for four bars.
 - Chain together captures, timing streaks, and a full procedural mix.
 - Leave with a block-by-block performance receipt.

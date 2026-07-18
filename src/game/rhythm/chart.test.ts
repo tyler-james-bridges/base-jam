@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createPracticeManifest } from "@/lib/base/manifest";
-import { createRhythmChart } from "./chart";
+import { createRhythmChart, rhythmFocusLane } from "./chart";
 
 describe("createRhythmChart", () => {
   it("turns Base data into a deterministic, balanced four-rail chart", () => {
@@ -32,5 +32,18 @@ describe("createRhythmChart", () => {
         16,
       ),
     ).toThrow(/between 1 and 15/i);
+  });
+
+  it("cycles focus mode through all four instruments deterministically", () => {
+    const chart = createRhythmChart(
+      [createPracticeManifest({ reason: "test fixture" })],
+      5,
+    );
+    const lanes = Array.from({ length: 5 }, (_, bar) =>
+      rhythmFocusLane(chart, bar),
+    );
+
+    expect(new Set(lanes.slice(0, 4))).toEqual(new Set([0, 1, 2, 3]));
+    expect(lanes[4]).toBe(lanes[0]);
   });
 });

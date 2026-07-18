@@ -44,4 +44,35 @@ describe("rhythm state", () => {
         .some((note) => state.noteResults[note.id]),
     ).toBe(false);
   });
+
+  it("gives focus mode a wider window without punishing exploratory taps", () => {
+    const chart = createRhythmChart(
+      [createPracticeManifest({ reason: "test fixture" })],
+      2,
+    );
+    const note = chart.notes.find(
+      (candidate) => candidate.bar === 0 && candidate.lane === 0,
+    )!;
+    const state = createRhythmState();
+    const ghost = judgeRhythmHit(chart, state, note.column, 0, {
+      goodWindowSeconds: 0.24,
+      perfectWindowSeconds: 0.105,
+      punishGhostTaps: false,
+    });
+    const forgivingHit = judgeRhythmHit(
+      chart,
+      ghost,
+      note.column,
+      note.time + 0.21,
+      {
+        goodWindowSeconds: 0.24,
+        perfectWindowSeconds: 0.105,
+        punishGhostTaps: false,
+      },
+    );
+
+    expect(ghost.misses).toBe(0);
+    expect(ghost.combo).toBe(0);
+    expect(forgivingHit.good).toBe(1);
+  });
 });

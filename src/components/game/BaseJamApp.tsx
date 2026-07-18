@@ -17,6 +17,7 @@ import {
   RHYTHM_RUN_SECONDS,
   RHYTHM_STEP_SECONDS,
   rhythmAccuracy,
+  rhythmFocusLane,
   rhythmResult,
   type RhythmChart,
   type RhythmColumn,
@@ -185,7 +186,7 @@ function HomeMixPreview({
           <span>{loading ? "Reading Base…" : "Drop into the set"}</span>
           <b aria-hidden>↗</b>
         </button>
-        <em>No wallet required · sound on</em>
+        <em>No wallet required · one-thumb mode on phones</em>
       </div>
     </div>
   );
@@ -219,8 +220,8 @@ function HomeView({
             THE CHAIN.
           </h1>
           <p className="hero-deck">
-            Real Base transactions become notes. Jump between four instrument
-            rails and capture each stem before its block seals.
+            Real Base transactions become notes. Phones auto-focus one
+            instrument at a time, so one thumb can capture the whole mix.
           </p>
           <div className="ready-block" aria-live="polite">
             <span>Now sequencing</span>
@@ -263,7 +264,7 @@ function HomeView({
             onPlay={onPlay}
           />
           <div className="ready-stage__bottom">
-            <span>A / D switch rails · J K L hit · M mute</span>
+            <span>Phone: tap high / mid / low · Desktop: A/D + J K L</span>
             <a
               href={level?.source.explorerUrl ?? "https://basescan.org"}
               rel="noreferrer"
@@ -330,8 +331,8 @@ function HomeView({
             <span>02</span>
             <h2>Capture a stem.</h2>
             <p>
-              Switch to a rail, then hit its three-note phrase with J, K, and
-              L. A clean phrase brings that instrument into the mix.
+              Phones automatically focus one instrument per block—just hit
+              high, mid, and low. Desktop players can switch rails manually.
             </p>
           </article>
           <article>
@@ -380,16 +381,20 @@ function LoadingView() {
 function GameView({
   audioContext,
   chart,
+  focusMode,
   onComplete,
 }: {
   audioContext: AudioContext | null;
   chart: RhythmChart;
+  focusMode: boolean;
   onComplete: (state: RhythmState, image: string | null) => void;
 }) {
   const controllerRef = useRef<BaseJamRhythmController | null>(null);
   const [state, setState] = useState<RhythmState | null>(null);
   const [notice, setNotice] = useState(
-    "A / D switch rails · J K L hit the three note columns",
+    focusMode
+      ? "One-thumb mode · tap high, mid, low at the red line"
+      : "A / D switch rails · J K L hit the three note columns",
   );
   const [muted, setMuted] = useState(false);
   const handleComplete = useCallback(
@@ -399,8 +404,12 @@ function GameView({
     [onComplete],
   );
   const handleReady = useCallback(() => {
-    setNotice("Follow the pulse · complete a phrase to capture its stem");
-  }, []);
+    setNotice(
+      focusMode
+        ? "Auto-focus is on · you only need the three big pads"
+        : "Follow the pulse · complete a phrase to capture its stem",
+    );
+  }, [focusMode]);
   const handleState = useCallback((next: RhythmState) => {
     setState(next);
   }, []);
@@ -420,15 +429,26 @@ function GameView({
     ? state.capturedUntilBar.filter((until) => until > currentBar).length
     : 0;
   const bar = chart.bars[currentBar] ?? chart.bars[0];
+  const selectedLane =
+    state?.selectedLane ??
+    (focusMode ? rhythmFocusLane(chart, currentBar) : 0);
+  const focusedLane = RHYTHM_LANES[selectedLane];
+  const nextFocusedLane =
+    RHYTHM_LANES[rhythmFocusLane(chart, currentBar + 1)];
 
   function hit(column: RhythmColumn) {
     controllerRef.current?.hit(column);
   }
 
   return (
-    <main className="game-shell rhythm-game-shell">
+    <main
+      className={`game-shell rhythm-game-shell ${focusMode ? "focus-mode-shell" : ""}`}
+    >
       <Header mode="playing" />
-      <section className="rhythm-game-layout">
+      <section
+        className={`rhythm-game-layout ${focusMode ? "is-focus-mode" : ""}`}
+        data-play-mode={focusMode ? "focus" : "manual"}
+      >
         <aside className="rhythm-hud">
           <div className="rhythm-hud__block">
             <p className="eyebrow">Live mix / bar {currentBar + 1}</p>
@@ -465,6 +485,16 @@ function GameView({
         </aside>
 
         <section className="rhythm-stage">
+          {focusMode ? (
+            <div
+              className="rhythm-focus-prompt"
+              style={{ "--lane-color": focusedLane.color } as CSSProperties}
+            >
+              <small>One-thumb auto rail</small>
+              <strong>{focusedLane.name}</strong>
+              <span>Next: {nextFocusedLane.name}</span>
+            </div>
+          ) : null}
           <div className={`rhythm-clock ${remaining <= 5 ? "is-urgent" : ""}`}>
             <span>{remaining.toString().padStart(2, "0")}</span>
             <small>seconds</small>
@@ -473,6 +503,7 @@ function GameView({
             audioContext={audioContext}
             chart={chart}
             controllerRef={controllerRef}
+            focusMode={focusMode}
             onComplete={handleComplete}
             onFeedback={handleFeedback}
             onMutedChange={handleMuted}
@@ -484,8 +515,58 @@ function GameView({
           </p>
         </section>
 
+        <div className="rhythm-control-dock" aria-label="Rhythm controls">
+          {!focusMode ? (
+            <button
+              aria-label="Previous instrument rail"
+              onClick={() => controllerRef.current?.moveLane(-1)}
+              type="button"
+            >
+              <b>←</b>
+              <small>A</small>
+            </button>
+          ) : null}
+          {(["J", "K", "L"] as const).map((key, column) => {
+            const focusNames = ["HIGH", "MID", "LOW"] as const;
+            const focusSymbols = ["↑", "●", "↓"] as const;
+            return (
+              <button
+                aria-label={
+                  focusMode
+                    ? `Hit ${focusNames[column].toLowerCase()} note`
+                    : `${key} hit ${column + 1}`
+                }
+                className="rhythm-hit-button"
+                key={key}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  hit(column as RhythmColumn);
+                }}
+                type="button"
+              >
+                <b>{focusMode ? focusSymbols[column] : key}</b>
+                <small>
+                  {focusMode ? focusNames[column] : `HIT ${column + 1}`}
+                </small>
+              </button>
+            );
+          })}
+          {!focusMode ? (
+            <button
+              aria-label="Next instrument rail"
+              onClick={() => controllerRef.current?.moveLane(1)}
+              type="button"
+            >
+              <b>→</b>
+              <small>D</small>
+            </button>
+          ) : null}
+        </div>
+
         <aside className="rhythm-lane-panel">
-          <p className="eyebrow">Instrument rails</p>
+          <p className="eyebrow">
+            {focusMode ? "Auto-focus rotation" : "Instrument rails"}
+          </p>
           <div className="rhythm-lane-buttons">
             {RHYTHM_LANES.map((lane, index) => {
               const selected = (state?.selectedLane ?? 0) === lane.id;
@@ -495,6 +576,7 @@ function GameView({
                 <button
                   aria-pressed={selected}
                   className={`${selected ? "is-selected" : ""} ${active ? "is-active" : ""}`}
+                  disabled={focusMode}
                   key={lane.id}
                   onClick={() => controllerRef.current?.selectLane(lane.id)}
                   style={{ "--lane-color": lane.color } as CSSProperties}
@@ -502,7 +584,15 @@ function GameView({
                 >
                   <small>0{index + 1}</small>
                   <strong>{lane.name}</strong>
-                  <span>{active ? "LIVE" : selected ? "ARMED" : "OFF"}</span>
+                  <span>
+                    {active
+                      ? "LIVE"
+                      : selected
+                        ? focusMode
+                          ? "NOW"
+                          : "ARMED"
+                        : "OFF"}
+                  </span>
                 </button>
               );
             })}
@@ -516,39 +606,6 @@ function GameView({
             <kbd>M</kbd>
           </button>
         </aside>
-
-        <div className="rhythm-control-dock" aria-label="Rhythm controls">
-          <button
-            aria-label="Previous instrument rail"
-            onClick={() => controllerRef.current?.moveLane(-1)}
-            type="button"
-          >
-            <b>←</b>
-            <small>A</small>
-          </button>
-          {(["J", "K", "L"] as const).map((key, column) => (
-            <button
-              className="rhythm-hit-button"
-              key={key}
-              onPointerDown={(event) => {
-                event.preventDefault();
-                hit(column as RhythmColumn);
-              }}
-              type="button"
-            >
-              <b>{key}</b>
-              <small>HIT {column + 1}</small>
-            </button>
-          ))}
-          <button
-            aria-label="Next instrument rail"
-            onClick={() => controllerRef.current?.moveLane(1)}
-            type="button"
-          >
-            <b>→</b>
-            <small>D</small>
-          </button>
-        </div>
       </section>
     </main>
   );
@@ -720,6 +777,7 @@ export function BaseJamApp() {
   const [level, setLevel] = useState<LevelManifestV1 | null>(null);
   const [chart, setChart] = useState<RhythmChart | null>(null);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [focusMode, setFocusMode] = useState(false);
   const [finishedState, setFinishedState] = useState<RhythmState | null>(null);
   const [fatalError, setFatalError] = useState("Base did not answer in time.");
   const [requestedBlock, setRequestedBlock] = useState<string | null>(null);
@@ -750,6 +808,9 @@ export function BaseJamApp() {
     ) => {
       const armedAudio =
         forcedAudio === undefined ? armRhythmAudio() : forcedAudio;
+      setFocusMode(
+        window.matchMedia("(max-width: 760px), (pointer: coarse)").matches,
+      );
       setAudioContext(armedAudio);
       setPhase("loading");
       setFinishedState(null);
@@ -819,6 +880,7 @@ export function BaseJamApp() {
       <GameView
         audioContext={audioContext}
         chart={chart}
+        focusMode={focusMode}
         onComplete={complete}
       />
     );

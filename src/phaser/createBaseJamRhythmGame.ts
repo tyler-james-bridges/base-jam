@@ -3,10 +3,13 @@ import { RhythmAudioEngine } from "@/audio/rhythmAudio";
 import {
   advanceRhythmState,
   createRhythmState,
+  FOCUS_GOOD_WINDOW_SECONDS,
+  FOCUS_PERFECT_WINDOW_SECONDS,
   finishRhythmState,
   GOOD_WINDOW_SECONDS,
   judgeRhythmHit,
   RHYTHM_LANES,
+  rhythmFocusLane,
   selectRhythmLane,
   type RhythmChart,
   type RhythmColumn,
@@ -26,6 +29,7 @@ const CORAL = 0xff5b45;
 export interface BaseJamRhythmGameInput {
   readonly chart: RhythmChart;
   readonly audioContext: AudioContext | null;
+  readonly focusMode: boolean;
 }
 
 export interface BaseJamRhythmBridge {
@@ -123,6 +127,12 @@ class BaseJamRhythmScene extends Phaser.Scene {
       this.inputData.chart.keyIndex,
       () => this.state,
     );
+    if (this.inputData.focusMode) {
+      this.state = selectRhythmLane(
+        this.state,
+        rhythmFocusLane(this.inputData.chart, 0),
+      );
+    }
     this.audio.start();
 
     this.input.keyboard?.on("keydown-A", () => this.moveLane(-1));
@@ -166,10 +176,22 @@ class BaseJamRhythmScene extends Phaser.Scene {
       this.inputData.chart,
       this.state,
       this.songTime,
+      this.hitWindow,
     );
     if (this.state.currentBar !== this.lastBar) {
       this.lastBar = this.state.currentBar;
       this.sealFlashUntil = performance.now() + 190;
+      if (this.inputData.focusMode) {
+        const lane = rhythmFocusLane(
+          this.inputData.chart,
+          this.state.currentBar,
+        );
+        this.state = selectRhythmLane(this.state, lane);
+        this.bridge.onFeedback(
+          `${RHYTHM_LANES[lane].name} in focus · tap high, mid, low`,
+        );
+        this.vibrate(8);
+      }
     }
     if (this.state !== previous) {
       this.bridge.onStateChange(this.state);
@@ -189,15 +211,31 @@ class BaseJamRhythmScene extends Phaser.Scene {
       previous,
       column,
       this.songTime,
+      this.inputData.focusMode
+        ? {
+            goodWindowSeconds: FOCUS_GOOD_WINDOW_SECONDS,
+            perfectWindowSeconds: FOCUS_PERFECT_WINDOW_SECONDS,
+            punishGhostTaps: false,
+          }
+        : undefined,
     );
     this.state = next;
-    const judgement = next.lastJudgement ?? "miss";
+    const judgement = next.lastJudgement;
+    if (!judgement) {
+      this.feedbackText.setColor("#181818");
+      this.feedbackText.setText("HOLD");
+      this.bridge.onFeedback("Hold · tap when a note crosses the red line");
+      this.bridge.onStateChange(this.state);
+      this.draw();
+      return;
+    }
     if (judgement === "miss") {
       this.audio.miss();
       this.feedbackText.setColor("#ff5b45");
       this.feedbackText.setText("MISS");
       this.bridge.onFeedback("Miss · stay with the pulse");
       this.cameras.main.shake(45, 0.002);
+      this.vibrate(20);
     } else {
       this.audio.hit(next.selectedLane, column, judgement);
       this.feedbackText.setColor(
@@ -217,6 +255,7 @@ class BaseJamRhythmScene extends Phaser.Scene {
         startedAt: performance.now(),
         color: LANE_COLORS[next.selectedLane],
       });
+      this.vibrate(judgement === "perfect" ? 12 : 7);
       if (next.captures > previous.captures) {
         this.audio.capture(next.selectedLane);
         this.feedbackText.setText(
@@ -224,6 +263,7 @@ class BaseJamRhythmScene extends Phaser.Scene {
         );
         this.feedbackText.setColor("#1456f0");
         this.cameras.main.flash(90, 20, 86, 240, false);
+        this.vibrate([12, 30, 12]);
       }
     }
     this.bridge.onStateChange(this.state);
@@ -232,6 +272,10 @@ class BaseJamRhythmScene extends Phaser.Scene {
 
   selectLane = (lane: RhythmLane) => {
     if (this.completed) return;
+    if (this.inputData.focusMode) {
+      this.bridge.onFeedback("Focus mode changes instruments automatically");
+      return;
+    }
     this.state = selectRhythmLane(this.state, lane);
     this.bridge.onFeedback(
       `${RHYTHM_LANES[lane].name} rail · hit J K L`,
@@ -241,6 +285,7 @@ class BaseJamRhythmScene extends Phaser.Scene {
   };
 
   moveLane = (delta: -1 | 1) => {
+    if (this.inputData.focusMode) return;
     const next = ((this.state.selectedLane + delta + 4) % 4) as RhythmLane;
     this.selectLane(next);
   };
@@ -274,7 +319,26 @@ class BaseJamRhythmScene extends Phaser.Scene {
     this.audio?.stop();
   }
 
+  private get hitWindow(): number {
+    return this.inputData.focusMode
+      ? FOCUS_GOOD_WINDOW_SECONDS
+      : GOOD_WINDOW_SECONDS;
+  }
+
+  private vibrate(pattern: number | number[]) {
+    if (!this.inputData.focusMode || typeof navigator === "undefined") return;
+    navigator.vibrate?.(pattern);
+  }
+
   private laneY(lane: RhythmLane, x: number): number {
+    if (this.inputData.focusMode) {
+      const progress = Phaser.Math.Clamp(
+        (x - HIT_X) / (HORIZON_X - HIT_X),
+        0,
+        1,
+      );
+      return Phaser.Math.Linear(310, 304, progress);
+    }
     const leftY = 162 + lane * 108;
     const horizonY = 228 + lane * 56;
     const progress = Phaser.Math.Clamp(
@@ -294,15 +358,23 @@ class BaseJamRhythmScene extends Phaser.Scene {
     const progress = secondsAhead / LOOKAHEAD_SECONDS;
     const x = HIT_X + progress * (HORIZON_X - HIT_X);
     const perspective = Phaser.Math.Clamp(progress, 0, 1);
-    const columnOffset = Phaser.Math.Linear(
-      (column - 1) * 28,
-      (column - 1) * 12,
-      perspective,
-    );
+    const columnOffset = this.inputData.focusMode
+      ? Phaser.Math.Linear(
+          (column - 1) * 92,
+          (column - 1) * 38,
+          perspective,
+        )
+      : Phaser.Math.Linear(
+          (column - 1) * 28,
+          (column - 1) * 12,
+          perspective,
+        );
     return {
       x,
       y: this.laneY(lane, x) + columnOffset,
-      size: Phaser.Math.Linear(25, 10, perspective),
+      size: this.inputData.focusMode
+        ? Phaser.Math.Linear(42, 16, perspective)
+        : Phaser.Math.Linear(25, 10, perspective),
     };
   }
 
@@ -312,8 +384,8 @@ class BaseJamRhythmScene extends Phaser.Scene {
     const color = LANE_COLORS[lane];
     const leftY = this.laneY(lane, HIT_X);
     const rightY = this.laneY(lane, HORIZON_X);
-    const leftHalf = 44;
-    const rightHalf = 20;
+    const leftHalf = this.inputData.focusMode ? 145 : 44;
+    const rightHalf = this.inputData.focusMode ? 68 : 20;
 
     this.ink.fillStyle(color, selected ? 0.1 : active ? 0.075 : 0.018);
     this.ink.fillPoints(
@@ -337,8 +409,10 @@ class BaseJamRhythmScene extends Phaser.Scene {
     );
 
     for (let column = 0; column < 3; column += 1) {
-      const leftOffset = (column - 1) * 28;
-      const rightOffset = (column - 1) * 12;
+      const leftOffset =
+        (column - 1) * (this.inputData.focusMode ? 92 : 28);
+      const rightOffset =
+        (column - 1) * (this.inputData.focusMode ? 38 : 12);
       this.ink.lineStyle(1, color, selected ? 0.2 : 0.09);
       this.ink.lineBetween(
         HIT_X,
@@ -349,10 +423,22 @@ class BaseJamRhythmScene extends Phaser.Scene {
     }
 
     this.ink.fillStyle(color, selected ? 1 : 0.48);
-    this.ink.fillRoundedRect(28, leftY - 28, 82, 56, 4);
+    this.ink.fillRoundedRect(
+      28,
+      this.inputData.focusMode ? 104 : leftY - 28,
+      this.inputData.focusMode ? 92 : 82,
+      this.inputData.focusMode ? 52 : 56,
+      4,
+    );
     if (active) {
       this.ink.lineStyle(3, color, 0.95);
-      this.ink.strokeRoundedRect(23, leftY - 33, 92, 66, 5);
+      this.ink.strokeRoundedRect(
+        23,
+        this.inputData.focusMode ? 99 : leftY - 33,
+        this.inputData.focusMode ? 102 : 92,
+        this.inputData.focusMode ? 62 : 66,
+        5,
+      );
     }
   }
 
@@ -364,7 +450,12 @@ class BaseJamRhythmScene extends Phaser.Scene {
       const x = HIT_X + (secondsAhead / LOOKAHEAD_SECONDS) * (HORIZON_X - HIT_X);
       if (x < HIT_X - 10 || x > HORIZON_X + 10) continue;
       this.ink.lineStyle(2, 0x181818, 0.18);
-      this.ink.lineBetween(x, 104, x, 578);
+      this.ink.lineBetween(
+        x,
+        this.inputData.focusMode ? 142 : 104,
+        x,
+        this.inputData.focusMode ? 480 : 578,
+      );
       this.ink.fillStyle(0x181818, 0.55);
       this.ink.fillRect(x - 2, 96, 4, 8);
     }
@@ -373,8 +464,14 @@ class BaseJamRhythmScene extends Phaser.Scene {
   private drawNotes() {
     const now = Math.max(0, this.songTime);
     this.inputData.chart.notes.forEach((note) => {
+      if (
+        this.inputData.focusMode &&
+        note.lane !== rhythmFocusLane(this.inputData.chart, note.bar)
+      ) {
+        return;
+      }
       const delta = note.time - now;
-      if (delta < -GOOD_WINDOW_SECONDS - 0.18 || delta > LOOKAHEAD_SECONDS) {
+      if (delta < -this.hitWindow - 0.18 || delta > LOOKAHEAD_SECONDS) {
         return;
       }
       const result = this.state.noteResults[note.id];
@@ -384,7 +481,8 @@ class BaseJamRhythmScene extends Phaser.Scene {
         note.column,
         note.time,
       );
-      const selected = note.lane === this.state.selectedLane;
+      const selected =
+        this.inputData.focusMode || note.lane === this.state.selectedLane;
       const color = result === "miss" ? CORAL : LANE_COLORS[note.lane];
       this.ink.fillStyle(color, selected ? 0.98 : 0.45);
       this.ink.fillRoundedRect(
@@ -411,7 +509,8 @@ class BaseJamRhythmScene extends Phaser.Scene {
     this.bursts.forEach((burst) => {
       const age = (now - burst.startedAt) / 360;
       const y =
-        this.laneY(burst.lane, HIT_X) + (burst.column - 1) * 28;
+        this.laneY(burst.lane, HIT_X) +
+        (burst.column - 1) * (this.inputData.focusMode ? 92 : 28);
       this.ink.lineStyle(3, burst.color, 1 - age);
       this.ink.strokeCircle(HIT_X, y, 18 + age * 58);
       this.ink.lineStyle(1, burst.color, 0.65 * (1 - age));
@@ -427,26 +526,64 @@ class BaseJamRhythmScene extends Phaser.Scene {
     this.ink.lineStyle(2, 0x181818, 0.75);
     this.ink.strokeRoundedRect(6, 6, GAME_WIDTH - 12, GAME_HEIGHT - 12, 12);
 
-    this.ink.fillStyle(0x1456f0, 0.045);
+    this.ink.fillStyle(
+      this.inputData.focusMode
+        ? LANE_COLORS[this.state.selectedLane]
+        : 0x1456f0,
+      this.inputData.focusMode ? 0.065 : 0.045,
+    );
     this.ink.fillTriangle(
       HIT_X,
-      95,
+      this.inputData.focusMode ? 140 : 95,
       HORIZON_X,
-      200,
+      this.inputData.focusMode ? 235 : 200,
       HORIZON_X,
-      470,
+      this.inputData.focusMode ? 375 : 470,
     );
     this.drawBlockDividers();
-    ([0, 1, 2, 3] as const).forEach((lane) => this.drawLane(lane));
+    if (this.inputData.focusMode) {
+      this.drawLane(this.state.selectedLane);
+    } else {
+      ([0, 1, 2, 3] as const).forEach((lane) => this.drawLane(lane));
+    }
 
     if (performance.now() < this.sealFlashUntil) {
       this.ink.fillStyle(0xff5b45, 0.12);
-      this.ink.fillRect(HIT_X - 12, 88, 24, 500);
+      this.ink.fillRect(
+        HIT_X - 12,
+        this.inputData.focusMode ? 134 : 88,
+        24,
+        this.inputData.focusMode ? 352 : 500,
+      );
     }
     this.ink.lineStyle(5, 0x181818, 0.95);
-    this.ink.lineBetween(HIT_X, 92, HIT_X, 586);
+    this.ink.lineBetween(
+      HIT_X,
+      this.inputData.focusMode ? 134 : 92,
+      HIT_X,
+      this.inputData.focusMode ? 486 : 586,
+    );
     this.ink.lineStyle(2, 0xff5b45, 0.9);
-    this.ink.lineBetween(HIT_X + 8, 92, HIT_X + 8, 586);
+    this.ink.lineBetween(
+      HIT_X + 8,
+      this.inputData.focusMode ? 134 : 92,
+      HIT_X + 8,
+      this.inputData.focusMode ? 486 : 586,
+    );
+    if (this.inputData.focusMode) {
+      for (let column = 0; column < 3; column += 1) {
+        const y =
+          this.laneY(this.state.selectedLane, HIT_X) + (column - 1) * 92;
+        this.ink.fillStyle(PAPER, 1);
+        this.ink.fillCircle(HIT_X, y, 30);
+        this.ink.lineStyle(
+          4,
+          LANE_COLORS[this.state.selectedLane],
+          0.95,
+        );
+        this.ink.strokeCircle(HIT_X, y, 30);
+      }
+    }
 
     this.drawNotes();
     this.drawBursts();
@@ -460,7 +597,7 @@ class BaseJamRhythmScene extends Phaser.Scene {
         (note) =>
           note.lane === this.state.selectedLane &&
           !this.state.noteResults[note.id] &&
-          note.time >= Math.max(0, this.songTime) - GOOD_WINDOW_SECONDS,
+          note.time >= Math.max(0, this.songTime) - this.hitWindow,
       )
       .sort((left, right) => left.time - right.time)[0];
     this.signalText.setText(

@@ -2345,6 +2345,40 @@ kbd {
   text-transform: uppercase;
 }
 
+.rhythm-focus-prompt {
+  position: absolute;
+  z-index: 6;
+  top: 14px;
+  left: 14px;
+  display: none;
+  min-width: 156px;
+  border: 1px solid var(--ink);
+  background: color-mix(in srgb, var(--lane-color) 18%, var(--paper));
+  box-shadow: 4px 4px 0 var(--lane-color);
+  padding: 8px 10px;
+  pointer-events: none;
+}
+
+.rhythm-focus-prompt small,
+.rhythm-focus-prompt span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 6px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rhythm-focus-prompt strong {
+  display: block;
+  margin: 3px 0;
+  font-size: 18px;
+  letter-spacing: -0.05em;
+}
+
+.is-focus-mode .rhythm-focus-prompt {
+  display: block;
+}
+
 .rhythm-lane-panel {
   align-self: center;
   grid-area: lanes;
@@ -2371,6 +2405,11 @@ kbd {
   grid-template-columns: 20px 1fr auto;
   padding: 9px 7px 9px 13px;
   text-align: left;
+}
+
+.is-focus-mode .rhythm-lane-buttons button:disabled {
+  cursor: default;
+  opacity: 1;
 }
 
 .rhythm-lane-buttons button::before {
@@ -2445,6 +2484,11 @@ kbd {
   grid-template-columns: 0.72fr repeat(3, 1fr) 0.72fr;
 }
 
+.is-focus-mode .rhythm-control-dock {
+  width: min(520px, 92%);
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .rhythm-control-dock button {
   display: flex;
   min-width: 0;
@@ -2474,6 +2518,21 @@ kbd {
 }
 
 .rhythm-control-dock button:nth-child(4) {
+  background: var(--acid);
+  color: var(--ink);
+}
+
+.is-focus-mode .rhythm-control-dock .rhythm-hit-button:nth-child(1) {
+  background: var(--blue);
+  color: #fff;
+}
+
+.is-focus-mode .rhythm-control-dock .rhythm-hit-button:nth-child(2) {
+  background: var(--coral);
+  color: var(--ink);
+}
+
+.is-focus-mode .rhythm-control-dock .rhythm-hit-button:nth-child(3) {
   background: var(--acid);
   color: var(--ink);
 }
@@ -2886,7 +2945,6 @@ kbd {
     width: 100%;
   }
 
-  .rhythm-lane-panel > .eyebrow,
   .rhythm-lane-panel > .eyebrow {
     display: none;
   }
@@ -2956,6 +3014,59 @@ kbd {
     font-size: 5px;
   }
 
+  .is-focus-mode .rhythm-focus-prompt {
+    top: 7px;
+    left: 7px;
+    min-width: 126px;
+    box-shadow: 3px 3px 0 var(--lane-color);
+    padding: 6px 8px;
+  }
+
+  .is-focus-mode .rhythm-focus-prompt strong {
+    margin: 2px 0;
+    font-size: 15px;
+  }
+
+  .is-focus-mode .rhythm-focus-prompt span {
+    font-size: 5px;
+  }
+
+  .is-focus-mode .rhythm-control-dock {
+    position: static;
+    bottom: auto;
+    width: 100%;
+    margin: 0;
+    box-shadow: 4px 4px 0 var(--blue);
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .is-focus-mode .rhythm-control-dock button {
+    min-height: 82px;
+    touch-action: manipulation;
+  }
+
+  .is-focus-mode .rhythm-control-dock b {
+    font-size: 25px;
+    line-height: 1;
+  }
+
+  .is-focus-mode .rhythm-control-dock small {
+    margin-top: 7px;
+    font-size: 8px;
+  }
+
+  .is-focus-mode .rhythm-lane-buttons button {
+    min-height: 42px;
+  }
+
+  .is-focus-mode .rhythm-lane-buttons button strong {
+    font-size: 9px;
+  }
+
+  .is-focus-mode .rhythm-mute {
+    min-height: 30px;
+  }
+
   .rhythm-result-shell {
     overflow: visible;
   }
@@ -3004,5 +3115,84 @@ kbd {
 
   .rhythm-lane-buttons button strong {
     font-size: 9px;
+  }
+}
+
+@media (max-height: 500px) and (pointer: coarse) {
+  .focus-mode-shell {
+    height: 100svh;
+    min-height: 0;
+    padding: 6px 10px;
+    overflow: hidden;
+  }
+
+  .focus-mode-shell .site-header {
+    display: none;
+  }
+
+  .is-focus-mode.rhythm-game-layout {
+    width: 100%;
+    height: calc(100svh - 12px);
+    min-height: 0;
+    gap: 5px 12px;
+    grid-template-columns: 112px minmax(420px, 1fr) 132px;
+    grid-template-rows: minmax(0, 1fr) 62px;
+    padding: 0;
+  }
+
+  .is-focus-mode .rhythm-hud__block .eyebrow,
+  .is-focus-mode .rhythm-hud__block > a,
+  .is-focus-mode .rhythm-chain-state,
+  .is-focus-mode .rhythm-lane-panel > .eyebrow {
+    display: none;
+  }
+
+  .is-focus-mode .rhythm-hud__block h1 {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  .is-focus-mode .rhythm-hud dl {
+    margin: 12px 0 8px;
+  }
+
+  .is-focus-mode .rhythm-hud dl div {
+    padding: 4px 0;
+  }
+
+  .is-focus-mode .rhythm-hud dd {
+    font-size: 15px;
+  }
+
+  .is-focus-mode .base-jam-rhythm-canvas {
+    width: min(100%, 480px);
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+
+  .is-focus-mode .rhythm-notice {
+    display: none;
+  }
+
+  .is-focus-mode .rhythm-lane-buttons {
+    margin: 4px 0;
+  }
+
+  .is-focus-mode .rhythm-lane-buttons button {
+    min-height: 36px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .is-focus-mode .rhythm-mute {
+    min-height: 28px;
+    padding: 6px 8px;
+  }
+
+  .is-focus-mode .rhythm-control-dock {
+    width: 100%;
+  }
+
+  .is-focus-mode .rhythm-control-dock button {
+    min-height: 58px;
   }
 }

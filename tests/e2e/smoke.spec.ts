@@ -119,17 +119,46 @@ test("guest can enter the set and use keyboard or touch controls", async ({
   await expect(page.locator(".rhythm-clock span")).toHaveText(/^(2[89]|30)$/);
   await expect(page.locator(".rhythm-hit-button").first()).toBeVisible();
 
-  await page.keyboard.press("KeyD");
-  await expect(
-    page.locator(".rhythm-lane-buttons button[aria-pressed='true']"),
-  ).toContainText("BASS");
+  const viewport = page.viewportSize()!;
+  const game = page.locator(".rhythm-game-layout");
+  const selectedRail = page.locator(
+    ".rhythm-lane-buttons button[aria-pressed='true']",
+  );
+
+  if (viewport.width <= 760) {
+    await expect(game).toHaveAttribute("data-play-mode", "focus");
+    await expect(page.getByText("One-thumb auto rail")).toBeVisible();
+    await expect(page.locator(".rhythm-hit-button")).toHaveCount(3);
+    const selectedBefore = await selectedRail.textContent();
+    await page.keyboard.press("KeyD");
+    await expect(selectedRail).toHaveText(selectedBefore ?? "");
+    const hitBox = await page.locator(".rhythm-hit-button").first().boundingBox();
+    expect(hitBox?.height).toBeGreaterThanOrEqual(80);
+    await page.setViewportSize({ width: 844, height: 390 });
+    const landscapeCanvas = await page
+      .getByTestId("base-jam-rhythm")
+      .boundingBox();
+    const landscapeControls = await page
+      .locator(".rhythm-control-dock")
+      .boundingBox();
+    expect(landscapeCanvas!.y).toBeGreaterThanOrEqual(0);
+    expect(landscapeCanvas!.y + landscapeCanvas!.height).toBeLessThan(390);
+    expect(landscapeControls!.y + landscapeControls!.height).toBeLessThanOrEqual(
+      390,
+    );
+  } else {
+    await expect(game).toHaveAttribute("data-play-mode", "manual");
+    await page.keyboard.press("KeyD");
+    await expect(selectedRail).toContainText("BASS");
+    await expect(page.locator(".rhythm-hit-button")).toHaveCount(3);
+  }
+
   await page.locator(".rhythm-hit-button").nth(1).click();
   await page.getByRole("button", { name: /Sound on/i }).click();
   await expect(page.getByRole("button", { name: /Sound off/i })).toBeVisible();
 
-  const viewport = page.viewportSize();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
-    viewport!.width,
+    await page.evaluate(() => window.innerWidth),
   );
 });
 
