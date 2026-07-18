@@ -1,0 +1,17 @@
+{
+  "name": "SQSH — Pack a real Base block",
+  "short_name": "SQSH",
+  "description": "A one-thumb packing game generated from real Base transactions.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4eedb",
+  "theme_color": "#1456f0",
+  "icons": [
+    {
+      "src": "/icon-grid.svg",
+      "sizes": "160x160",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SQSH
 
-## Getting Started
+Pack a real Base block into a 10×10 square.
 
-First, run the development server:
+SQSH is a deterministic, wallet-optional browser game. It converts a buffered
+Base mainnet block into the same ordered set of transaction shapes for every
+player. Runs are replayed by the server before a signed challenge link is
+issued; client-submitted scores are never trusted.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Why this exists
+
+Block explorers make chain activity observable. SQSH makes it playable.
+
+- 60-second, one-thumb packing rounds
+- Real transaction-derived pieces
+- Guest-first play; wallet connection is optional
+- Pure simulation shared by the browser and replay verifier
+- Signed, tamper-evident result links
+- Explicit unranked fallback when Base data is unavailable
+- Zero custom contracts in the MVP
+
+## Architecture
+
+```text
+Base RPC (server only)
+  → immutable LevelManifestV1
+  → deterministic transaction buckets
+  → pure 10×10 simulation
+  → Phaser presentation + DOM HUD
+  → signed run ticket
+  → server replay verification
+  → signed challenge URL
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The game never labels `gas` as actual gas used. Receipt-only fields are added
+only when the provider returns a matching receipt. Base deposit/system
+transactions (`0x7e`) do not become pieces.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+See [PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) and
+[FEASIBILITY.md](docs/FEASIBILITY.md) for the full decision record.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Local development
 
-## Learn More
+Requirements: Node 24 and pnpm 10.
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+cp .env.example .env.local
+pnpm install
+pnpm dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The public Base RPC fallback is suitable only for local development. Set a
+dedicated `BASE_RPC_HTTP_URL` before production.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Verification
 
-## Deploy on Vercel
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm test:e2e
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Security posture
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- No private keys or unrestricted paymaster
+- No client-side RPC credentials
+- Run and share tokens use server-only HMAC secrets
+- Strict payload limits and schema validation
+- Deterministic replay verification, not client score acceptance
+- Anonymous local play remains available if wallet flows fail
+
+Wallet signatures prove account control, not that a player is human. SQSH does
+not claim bot-proof competition or guaranteed virality.
+
+## Base resources
+
+- [Base network connection guidance](https://docs.base.org/base-chain/quickstart/connecting-to-base)
+- [Base transaction finality](https://docs.base.org/base-chain/network-information/transaction-finality)
+- [Base standard app migration](https://docs.base.org/apps/guides/migrate-to-standard-web-app)
+- [Base Builder Codes](https://docs.base.org/apps/builder-codes/builder-codes)
+
+## License
+
+MIT
