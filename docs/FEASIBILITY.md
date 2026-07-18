@@ -13,7 +13,8 @@ identity, and sharing.
 
 Production source:
 
-- dedicated server-only Base RPC provider
+- dedicated server-only CDP Node endpoint as the primary provider
+- Base's official endpoint as an emergency failover
 - `eth_getBlockByNumber(blockNumber, true)` for canonical ordered transactions
 - individual receipt enrichment for the bounded sample when receipts are
   supported and required
@@ -21,7 +22,8 @@ Production source:
 - immutable manifest cached by digest
 
 The public `https://mainnet.base.org` endpoint is rate-limited and documented as
-unsuitable for production. It remains a development fallback only.
+unsuitable as a production primary. It remains available for local development
+and as a last-resort production failover behind the dedicated provider.
 
 Latest play uses a buffered block rather than the tip so receipts and canonical
 identity are available. Prize or consequential ranking would need the `safe`
@@ -72,7 +74,8 @@ inputs. Wallet signatures would prove account control only.
 - There is no global leaderboard database in the launch MVP.
 - There is no human-attestation layer.
 - The signed share payload must stay under the configured token size limit.
-- Dedicated production RPC credentials are still required at deployment.
+- Production and preview keep the dedicated RPC configuration server-only in
+  Vercel; no provider credential is included in the browser bundle.
 
 ## Why zero contracts
 

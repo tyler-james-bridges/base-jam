@@ -49,8 +49,10 @@ pnpm install
 pnpm dev
 ```
 
-The public Base RPC fallback is suitable only for local development. Set a
-dedicated `BASE_RPC_HTTP_URL` before production.
+The public Base RPC fallback is suitable only for local development. Production
+uses `BASE_RPC_HTTP_URLS` with a dedicated Base node provider first and Base's
+official endpoint as failover. The legacy single `BASE_RPC_HTTP_URL` remains
+supported.
 
 ## Verification
 

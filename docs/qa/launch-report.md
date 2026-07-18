@@ -2,7 +2,7 @@
 
 ## Remediation re-test
 
-**Final verdict: PASS WITH OPERATIONAL CAVEAT**
+**Final verdict: PASS**
 
 The two player-facing findings from the independent review were fixed in commit
 `9e01d1f1129fac953bda2e23ff9375fe97a62c3d` and re-tested against Vercel
@@ -13,7 +13,7 @@ deployment `dpl_B2fKqMpqRKTMaeWcuESYvkh5SykQ` on
 | --- | --- | --- |
 | Initial RPC recovery | **RESOLVED** | With only `GET /api/levels/latest` intercepted as HTTP 503, **Use practice plate** fetched the dedicated RPC-independent practice endpoint, requested a signed run with `practice:true`, and opened an 18-piece board labeled `Unranked practice`. [Screenshot 14](screenshots/14-fixed-practice-recovery.png) |
 | Long practice identifier overlap | **RESOLVED** | The real 24-digit future-block path rendered `Practice plate` and compact label `Requested #999999…999999`. At 1280×900 the heading ended at x=289.14 and the board began at x=336.38, leaving a measured 47.24px gap. [Screenshot 15](screenshots/15-fixed-practice-label.png) |
-| Public Base RPC dependency | **OPEN — OPERATIONAL** | Ranked production gameplay remains healthy and automatically degrades to deterministic unranked practice. A dedicated monitored provider is still recommended before sustained high traffic. |
+| Public Base RPC dependency | **RESOLVED** | Production and Preview now use a server-only CDP Node Base endpoint as the primary transport and Base's official endpoint as a ranked failover. The primary returned chain ID `0x2105` and a current Base block before rollout. |
 
 The custom hostname resolved to Vercel from both Cloudflare and Google public
 DNS, served HTTPS 200 with a valid certificate, and rendered absolute
@@ -66,32 +66,34 @@ The original review below remains intact as the audit trail for what was found.
 - **Evidence:** [real future-block practice fallback](screenshots/11-real-future-block-practice-fallback.png).
 - **Mode:** real production API and UI; no interception.
 
-### Medium — Production is configured to use Base's public RPC endpoint (open operational caveat)
+### Medium — Production is configured to use Base's public RPC endpoint (resolved)
 
-- **What was observed:** the deployed production environment has
-  `BASE_RPC_HTTP_URL` set, but its host is `mainnet.base.org`.
+- **What was observed:** the original deployed production environment had
+  `BASE_RPC_HTTP_URL` set to `mainnet.base.org`.
 - **Expected for sustained production traffic:** a dedicated, monitored Base RPC
   provider with suitable rate limits.
-- **Actual:** ranked requests worked throughout this pass, but the public RPC is
-  a reliability/rate-limit risk under traffic.
+- **Remediation:** Production and Preview now use `BASE_RPC_HTTP_URLS` with CDP
+  Node first and `mainnet.base.org` second. The server rejects public-only
+  production configuration, validates HTTPS transports, retries bounded
+  failures, and uses viem's ranked fallback transport.
+- **Verification:** the dedicated endpoint returned Base chain ID `0x2105`, a
+  current block number, and a populated latest block before deployment.
 - **Why it matters:** level generation and ranked replay confirmation both depend
   on this server-side provider.
 - **Likely owner:** infrastructure/operations.
-- **Evidence:** production environment inspection plus successful real responses
-  from `GET /api/levels/latest`, `POST /api/runs/start`, and
-  `POST /api/runs/finish`.
+- **Evidence:** provider-level JSON-RPC validation, sensitive Vercel environment
+  configuration, configuration unit tests, and production ranked-flow re-test.
 
 ## Launch recommendation
 
-**PASS WITH OPERATIONAL CAVEAT**
+**PASS**
 
 The exact production artifact passes its core launch story: anonymous access,
 real ranked Base data, pointer/touch controls, deterministic gameplay, nonzero
 placement, undo/spill, server-verified replay, tamper-evident share URL, same-block
 challenge, dynamic OG images, responsive mobile layout, and safe invalid-link/API
-handling. The two user-facing recovery/practice findings are resolved by the
-remediation re-test above. The public RPC provider remains an operational
-hardening item rather than a player-facing launch blocker.
+handling. The two user-facing recovery/practice findings and the dedicated RPC
+hardening item are resolved.
 
 ## Artifact under test
 
@@ -162,10 +164,10 @@ hardening item rather than a player-facing launch blocker.
 - **Metadata: PASS.** Source uses `metadataBase`; rendered root and share
   `og:image`/Twitter image URLs are absolute production URLs. Both dynamic image
   endpoints returned valid PNG content.
-- **RPC architecture: PASS WITH CAVEAT.** Base block/RPC calls live in server
-  modules and use `BASE_RPC_HTTP_URL`; no RPC credential is exposed through a
-  `NEXT_PUBLIC_*` variable. Production has the variable set, but currently points
-  to the public `mainnet.base.org` host (finding 3).
+- **RPC architecture: PASS.** Base block/RPC calls live in server modules and use
+  the server-only `BASE_RPC_HTTP_URLS` transport list; no RPC credential is
+  exposed through a `NEXT_PUBLIC_*` variable. Production and Preview use CDP
+  Node as the primary Base provider with the official endpoint as failover.
 - **Run integrity: PASS.** Production refused malformed payloads, issued signed
   run tickets, replayed canonical inputs server-side, used timing-safe HMAC
   verification, and returned a signed share token only after verification.

@@ -1,5 +1,6 @@
 import {
   createPublicClient,
+  fallback,
   http,
   type Hash,
   type TransactionReceipt,
@@ -15,45 +16,110 @@ const ZERO = BigInt(0);
 const RPC_TIMEOUT_MS = 8_000;
 const RPC_RETRY_COUNT = 2;
 const RECEIPT_BATCH_SIZE = 6;
+const PUBLIC_BASE_RPC_HOSTS = new Set([
+  "mainnet.base.org",
+  "mainnet-preconf.base.org",
+]);
 
 export class BaseRpcConfigurationError extends Error {
-  constructor() {
+  constructor(message?: string) {
     super(
-      "BASE_RPC_HTTP_URL is required in production. The public Base RPC is development-only.",
+      message ??
+        "A dedicated Base RPC URL is required in production. Base's public RPC is development-only.",
     );
     this.name = "BaseRpcConfigurationError";
   }
 }
 
-function rpcUrl(): string {
-  const configured = process.env.BASE_RPC_HTTP_URL?.trim();
+type RpcEnvironment = Partial<
+  Pick<
+    NodeJS.ProcessEnv,
+    "BASE_RPC_HTTP_URL" | "BASE_RPC_HTTP_URLS" | "NODE_ENV"
+  >
+>;
 
-  if (configured) {
-    return configured;
+function parsedRpcUrl(value: string, production: boolean): URL {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new BaseRpcConfigurationError(
+      "Base RPC configuration contains an invalid URL.",
+    );
   }
 
-  if (process.env.NODE_ENV !== "production") {
-    return DEVELOPMENT_RPC_URL;
+  const localHttp =
+    !production &&
+    url.protocol === "http:" &&
+    (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+  if (url.protocol !== "https:" && !localHttp) {
+    throw new BaseRpcConfigurationError(
+      "Base RPC URLs must use HTTPS in production.",
+    );
   }
 
-  throw new BaseRpcConfigurationError();
+  return url;
+}
+
+export function resolveBaseRpcUrls(
+  environment: RpcEnvironment = process.env,
+): readonly string[] {
+  const production = environment.NODE_ENV === "production";
+  const configured = [
+    ...(environment.BASE_RPC_HTTP_URLS?.split(",") ?? []),
+    environment.BASE_RPC_HTTP_URL ?? "",
+  ]
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const urls = [...new Set(configured)];
+
+  if (urls.length === 0 && !production) {
+    return [DEVELOPMENT_RPC_URL];
+  }
+
+  if (urls.length === 0) {
+    throw new BaseRpcConfigurationError();
+  }
+
+  const parsed = urls.map((value) => parsedRpcUrl(value, production));
+  if (
+    production &&
+    parsed.every((url) => PUBLIC_BASE_RPC_HOSTS.has(url.hostname))
+  ) {
+    throw new BaseRpcConfigurationError(
+      "Production needs a dedicated Base node provider; Base's public endpoints are rate-limited.",
+    );
+  }
+
+  return urls;
 }
 
 function baseClient() {
-  return createPublicClient({
-    chain: baseChain,
-    transport: http(rpcUrl(), {
+  const transports = resolveBaseRpcUrls().map((url) =>
+    http(url, {
+      batch: {
+        batchSize: RECEIPT_BATCH_SIZE,
+        wait: 0,
+      },
       retryCount: RPC_RETRY_COUNT,
       retryDelay: 350,
       timeout: RPC_TIMEOUT_MS,
     }),
+  );
+
+  return createPublicClient({
+    chain: baseChain,
+    transport:
+      transports.length === 1
+        ? transports[0]
+        : fallback(transports, { rank: true }),
   });
 }
 
 async function enrichReceipts(
+  client: ReturnType<typeof baseClient>,
   hashes: readonly HexString[],
 ): Promise<ReadonlyMap<HexString, TransactionReceipt>> {
-  const client = baseClient();
   const receipts = new Map<HexString, TransactionReceipt>();
 
   for (let offset = 0; offset < hashes.length; offset += RECEIPT_BATCH_SIZE) {
@@ -77,11 +143,11 @@ export interface FetchLevelOptions {
 }
 
 async function manifestForBlock(
+  client: ReturnType<typeof baseClient>,
   blockNumber: bigint,
   tip: bigint,
   options: FetchLevelOptions,
 ): Promise<LevelManifestV1> {
-  const client = baseClient();
   const block = await client.getBlock({
     blockNumber,
     includeTransactions: true,
@@ -92,7 +158,10 @@ async function manifestForBlock(
     return baseManifest;
   }
 
-  const receipts = await enrichReceipts(baseManifest.pieces.map((piece) => piece.hash));
+  const receipts = await enrichReceipts(
+    client,
+    baseManifest.pieces.map((piece) => piece.hash),
+  );
   return createBaseManifest(block, { tip, receipts });
 }
 
@@ -103,7 +172,7 @@ export async function fetchLatestBaseLevel(
   const tip = await client.getBlockNumber({ cacheTime: 0 });
   const blockNumber = tip > SAFE_BLOCK_DEPTH ? tip - SAFE_BLOCK_DEPTH : ZERO;
 
-  return manifestForBlock(blockNumber, tip, options);
+  return manifestForBlock(client, blockNumber, tip, options);
 }
 
 export async function fetchBaseLevel(
@@ -121,7 +190,7 @@ export async function fetchBaseLevel(
     throw new RangeError("Block number is ahead of the current Base tip.");
   }
 
-  return manifestForBlock(blockNumber, tip, options);
+  return manifestForBlock(client, blockNumber, tip, options);
 }
 
 export async function latestLevelOrPractice(
