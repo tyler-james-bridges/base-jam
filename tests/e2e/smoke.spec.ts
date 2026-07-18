@@ -85,6 +85,20 @@ test("home explains the game and loads a Base level", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: /Play latest block/ }),
   ).toBeEnabled();
+
+  const heroArtwork = page.locator(".hero-art");
+  const heroImage = heroArtwork.locator("img");
+  await expect(heroImage).toHaveCSS("object-fit", "contain");
+
+  const artworkBox = await heroArtwork.boundingBox();
+  const viewport = page.viewportSize();
+  expect(artworkBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(artworkBox!.width / artworkBox!.height).toBeCloseTo(1.5, 1);
+  expect(artworkBox!.x).toBeGreaterThanOrEqual(0);
+  expect(artworkBox!.x + artworkBox!.width).toBeLessThanOrEqual(
+    viewport!.width,
+  );
 });
 
 test("guest can enter the game and finish an unfilled plate", async ({

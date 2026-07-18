@@ -389,7 +389,7 @@ a {
 .hero-art {
   position: relative;
   width: min(100%, 610px);
-  aspect-ratio: 1;
+  aspect-ratio: 3 / 2;
   justify-self: end;
   border: 1px solid var(--ink);
   background: var(--paper-deep);
@@ -399,7 +399,8 @@ a {
 }
 
 .hero-art > img {
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   filter: saturate(1.05) contrast(1.03);
 }
 
