@@ -5,7 +5,10 @@ const blockHash =
 const digest =
   "0x6cbf2efda67befa88d7d447669bfb3fafb3cb63cfe5f5af2b87ccb827564aebb";
 
-const pieces = Array.from({ length: 18 }, (_, index) => ({
+// Keep the browser smoke fixture intentionally small. The full 24-piece
+// simulation is covered by unit tests; this fixture only needs enough pieces
+// to exercise the complete browser flow on slow shared CI runners.
+const pieces = Array.from({ length: 6 }, (_, index) => ({
   id: String(index),
   hash: `0x${(index + 1).toString(16).padStart(64, "0")}`,
   type: "0x2",
