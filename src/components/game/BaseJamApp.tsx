@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { WalletButton } from "@/components/WalletButton";
 import {
+  createGame,
   createReplay,
   currentPiece,
   packedPercentage,
@@ -148,11 +149,23 @@ function HomeView({
   loading: boolean;
   onPlay: () => void;
 }) {
+  const previewPieces = useMemo(() => {
+    if (!level) return [];
+    return createGame({
+      blockHash: level.source.hash || FALLBACK_BLOCK_HASH,
+      transactions: levelToSimulationTransactions(level),
+      pieceLimit: 6,
+    }).pieces.slice(0, 4);
+  }, [level]);
+  const playLabel = challengeBlock
+    ? `Play challenge #${numberLabel(challengeBlock)}`
+    : "Start jam";
+
   return (
     <main className="home-shell">
       <Header />
-      <section className="hero">
-        <div className="hero-copy">
+      <section className="arcade-home">
+        <div className="arcade-brief">
           <p className="eyebrow">
             The daily block packing game
             <span> / Base 8453</span>
@@ -166,26 +179,120 @@ function HomeView({
             Real Base transactions become one shared set of shapes. You get
             60 seconds and one undo to pack them tighter than everyone else.
           </p>
-          <div className="hero-actions">
-            <button
-              className="button button--primary"
-              disabled={loading}
-              onClick={onPlay}
-              type="button"
-            >
-              <span>
-                {loading
-                  ? "Loading Base…"
-                  : challengeBlock
-                    ? `Play challenge #${numberLabel(challengeBlock)}`
-                    : "Play latest block"}
-              </span>
-              <b aria-hidden>↗</b>
-            </button>
-            <span className="no-wallet">No wallet required</span>
+          <div className="ready-block" aria-live="polite">
+            <span>Now pressing</span>
+            <strong>
+              {level
+                ? `Block ${numberLabel(level.source.number)}`
+                : levelError
+                  ? "Practice press available"
+                  : "Reading Base…"}
+            </strong>
+            <small>
+              {level
+                ? `${level.pieces.length} transaction pieces`
+                : "Cutting the daily bag"}
+            </small>
           </div>
         </div>
-        <div className="hero-art" aria-hidden>
+
+        <section className="ready-stage" aria-label="Daily Base block game">
+          <div className="ready-stage__top">
+            <div>
+              <span>Live plate</span>
+              <strong>
+                {level
+                  ? `#${numberLabel(level.source.number)}`
+                  : "Synchronizing"}
+              </strong>
+            </div>
+            <span
+              className={`ready-rank ${level?.ranked ? "ready-rank--ranked" : ""}`}
+            >
+              <i />
+              {level?.ranked ? "Ranked Base block" : "Practice capable"}
+            </span>
+          </div>
+
+          <div className="home-board-preview" data-testid="home-board-preview">
+            <div className="home-board-grid" aria-hidden>
+              {Array.from({ length: 100 }, (_, index) => (
+                <span key={index} />
+              ))}
+            </div>
+            <div className="home-board-ghost" aria-hidden>
+              {previewPieces[0] ? (
+                <MiniPiece piece={previewPieces[0]} />
+              ) : (
+                <div className="preview-cutting">
+                  <i />
+                  <i />
+                  <i />
+                </div>
+              )}
+            </div>
+            <div className="board-start">
+              <span>
+                {loading
+                  ? "Reading the latest Base block"
+                  : levelError
+                    ? "Base paused · recovery is ready"
+                    : "Your daily bag is cut"}
+              </span>
+              <button
+                className="button button--primary"
+                disabled={loading}
+                onClick={onPlay}
+                type="button"
+              >
+                <strong>{loading ? "Loading Base…" : playLabel}</strong>
+                <b aria-hidden>↗</b>
+              </button>
+              <small>No wallet required</small>
+            </div>
+          </div>
+
+          <div className="ready-stage__bottom">
+            <span>Tap a cell to press · rotate · place · spill</span>
+            <a
+              href={level?.source.explorerUrl ?? "https://basescan.org"}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Inspect source ↗
+            </a>
+          </div>
+        </section>
+
+        <aside className="ready-queue">
+          <div className="ready-timer" aria-label="60 second game">
+            <span>60</span>
+            <small>seconds to pack</small>
+          </div>
+          <p className="eyebrow">Next from the block</p>
+          <div className="next-stack">
+            {Array.from({ length: 3 }, (_, index) => {
+              const piece = previewPieces[index + 1];
+              return (
+                <div className="next-piece" key={piece?.id ?? index}>
+                  <small>TX {String(index + 1).padStart(2, "0")}</small>
+                  {piece ? (
+                    <MiniPiece piece={piece} />
+                  ) : (
+                    <span className="next-piece__loading" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="ready-rules">
+            <span>Same block</span>
+            <span>Same bag</span>
+            <span>One undo</span>
+          </div>
+        </aside>
+
+        <div className="daily-poster" aria-label="Daily BASE JAM press sheet">
           <Image
             alt=""
             fill
@@ -202,36 +309,12 @@ function HomeView({
         </div>
       </section>
 
-      <section className="live-strip" aria-live="polite">
-        <div>
-          <span>Now pressing</span>
-          <strong>
-            {level
-              ? `Block ${numberLabel(level.source.number)}`
-              : levelError
-                ? "Cached practice block"
-                : "Reading Base…"}
-          </strong>
-        </div>
-        <div>
-          <span>Transaction pieces</span>
-          <strong>{level?.pieces.length ?? 24}</strong>
-        </div>
-        <div>
-          <span>Rules</span>
-          <strong>Same bag · same board</strong>
-        </div>
-        <a
-          href={level?.source.explorerUrl ?? "https://basescan.org"}
-          rel="noreferrer"
-          target="_blank"
-        >
-          Inspect source ↗
-        </a>
-      </section>
-
-      <section className="how">
-        <div className="section-kicker">01 / How it works</div>
+      <details className="field-guide">
+        <summary>
+          <span>Field guide</span>
+          <strong>How to jam a block</strong>
+          <b aria-hidden>+</b>
+        </summary>
         <div className="steps">
           <article>
             <span>01</span>
@@ -258,7 +341,7 @@ function HomeView({
             </p>
           </article>
         </div>
-      </section>
+      </details>
 
       <footer className="site-footer">
         <strong>BASE JAM / 8453</strong>
@@ -293,13 +376,16 @@ function LoadingView({ message }: { message: string }) {
 function GameView({
   level,
   onComplete,
+  onReady,
   seconds,
 }: {
   level: LevelManifestV1;
   onComplete: (state: GameState, image: string | null) => void;
+  onReady: () => void;
   seconds: number;
 }) {
   const controllerRef = useRef<BaseJamGameController | null>(null);
+  const readyRef = useRef(false);
   const [state, setState] = useState<GameState | null>(null);
   const [notice, setNotice] = useState(
     "Tap a cell to press · R rotates · Space places",
@@ -318,15 +404,22 @@ function GameView({
   const handleInvalid = useCallback((message: string) => {
     setNotice(message);
   }, []);
-  const handleState = useCallback((nextState: GameState) => {
-    setState(nextState);
-    const piece = currentPiece(nextState);
-    setNotice(
-      piece
-        ? `${piece.kind.replaceAll("_", " ")} · ${piece.cells.length} cells`
-        : "Sealing your jam…",
-    );
-  }, []);
+  const handleState = useCallback(
+    (nextState: GameState) => {
+      if (!readyRef.current) {
+        readyRef.current = true;
+        onReady();
+      }
+      setState(nextState);
+      const piece = currentPiece(nextState);
+      setNotice(
+        piece
+          ? `${piece.kind.replaceAll("_", " ")} · ${piece.cells.length} cells`
+          : "Sealing your jam…",
+      );
+    },
+    [onReady],
+  );
 
   useEffect(() => {
     if (seconds <= 0) {
@@ -640,6 +733,7 @@ export function BaseJamApp() {
   const [level, setLevel] = useState<LevelManifestV1 | null>(null);
   const [ticket, setTicket] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(RUN_SECONDS);
+  const [gameReady, setGameReady] = useState(false);
   const [finishedState, setFinishedState] = useState<GameState | null>(null);
   const [durationMs, setDurationMs] = useState(0);
   const [shareToken, setShareToken] = useState<string | null>(null);
@@ -668,12 +762,12 @@ export function BaseJamApp() {
   }, [levelQuery.data]);
 
   useEffect(() => {
-    if (phase !== "playing") return;
+    if (phase !== "playing" || !gameReady) return;
     const timer = window.setInterval(() => {
       setSeconds((value) => Math.max(0, value - 1));
     }, 1_000);
     return () => window.clearInterval(timer);
-  }, [phase]);
+  }, [gameReady, phase]);
 
   const issueTicket = useCallback(async (selected: LevelManifestV1) => {
     const response = await fetch("/api/runs/start", {
@@ -706,7 +800,7 @@ export function BaseJamApp() {
         const run = await issueTicket(selected);
         setTicket(run.ticket);
         setSeconds(RUN_SECONDS);
-        startedAt.current = Date.now();
+        setGameReady(false);
         setPhase("playing");
       } catch (error) {
         setFatalError(
@@ -735,6 +829,11 @@ export function BaseJamApp() {
     },
     [],
   );
+
+  const markGameReady = useCallback(() => {
+    startedAt.current = Date.now();
+    setGameReady(true);
+  }, []);
 
   useEffect(() => {
     if (phase !== "result" || !finishedState || !ticket || shareToken) return;
@@ -785,7 +884,14 @@ export function BaseJamApp() {
 
   if (phase === "loading") return <LoadingView message="CUTTING TRANSACTIONS." />;
   if (phase === "playing" && level) {
-    return <GameView level={level} onComplete={complete} seconds={seconds} />;
+    return (
+      <GameView
+        level={level}
+        onComplete={complete}
+        onReady={markGameReady}
+        seconds={seconds}
+      />
+    );
   }
   if (phase === "result" && level && finishedState) {
     return (

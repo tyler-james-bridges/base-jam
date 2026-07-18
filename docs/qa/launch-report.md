@@ -173,10 +173,11 @@ hardening item are resolved.
   verification, and returned a signed share token only after verification.
 - **Contracts/tokens/approvals: NOT APPLICABLE by design.** The repository has no
   Solidity/contracts directory, contract writes, token launch, approvals,
-  paymaster, funds flow, or address input. `$BJAM` is ticker-style branding only.
-  Contract verification, contract address display, approval sequencing, token
-  USD values, and wallet transaction deep-link checks are therefore not
-  applicable rather than failures.
+  paymaster, funds flow, or address input. `BJAM` is the BASE JAM brand acronym;
+  it does not represent an app-issued token symbol or asset. Contract
+  verification, contract address display, approval sequencing, token USD values,
+  and wallet transaction deep-link checks are therefore not applicable rather
+  than failures.
 - **Wallet checklist applicability:** wallet connection is optional identity UI,
   not a prerequisite for play. No wrong-network/approve/action transaction state
   machine exists because the game has no onchain write.

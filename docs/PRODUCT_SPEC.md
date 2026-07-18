@@ -97,8 +97,8 @@ Post-launch candidates:
 
 Name: **BASE JAM**
 
-Ticker-style identity: **$BJAM**. This is brand architecture only. The MVP does
-not create or imply a tradeable token.
+Brand acronym: **BJAM**. It refers only to BASE JAM; the MVP does not create or
+imply a tradeable token.
 
 Visual language:
 

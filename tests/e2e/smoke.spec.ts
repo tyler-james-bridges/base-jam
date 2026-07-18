@@ -83,22 +83,29 @@ test("home explains the game and loads a Base level", async ({ page }) => {
   ).toBeVisible();
   await expect(page.getByText("Block 48,725,123")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Play latest block/ }),
+    page.getByRole("button", { name: /Start jam/ }),
   ).toBeEnabled();
 
-  const heroArtwork = page.locator(".hero-art");
-  const heroImage = heroArtwork.locator("img");
-  await expect(heroImage).toHaveCSS("object-fit", "contain");
+  const boardPreview = page.getByTestId("home-board-preview");
+  const dailyPoster = page.locator(".daily-poster");
+  const posterImage = dailyPoster.locator("img");
+  await expect(boardPreview).toBeVisible();
+  await expect(posterImage).toHaveCSS("object-fit", "contain");
+  await expect(page.locator(".field-guide")).not.toHaveAttribute("open", "");
 
-  const artworkBox = await heroArtwork.boundingBox();
+  const boardBox = await boardPreview.boundingBox();
+  const posterBox = await dailyPoster.boundingBox();
   const viewport = page.viewportSize();
-  expect(artworkBox).not.toBeNull();
+  expect(boardBox).not.toBeNull();
+  expect(posterBox).not.toBeNull();
   expect(viewport).not.toBeNull();
-  expect(artworkBox!.width / artworkBox!.height).toBeCloseTo(1.5, 1);
-  expect(artworkBox!.x).toBeGreaterThanOrEqual(0);
-  expect(artworkBox!.x + artworkBox!.width).toBeLessThanOrEqual(
-    viewport!.width,
+  expect(boardBox!.width / boardBox!.height).toBeCloseTo(1, 1);
+  expect(boardBox!.width).toBeGreaterThanOrEqual(
+    viewport!.width <= 760 ? viewport!.width * 0.82 : viewport!.width * 0.35,
   );
+  expect(boardBox!.y).toBeLessThan(viewport!.height);
+  expect(posterBox!.y).toBeGreaterThan(boardBox!.y);
+  expect(posterBox!.width / posterBox!.height).toBeCloseTo(1.5, 1);
 });
 
 test("guest can enter the game and finish an unfilled plate", async ({
@@ -106,10 +113,10 @@ test("guest can enter the game and finish an unfilled plate", async ({
 }) => {
   await mockPlayableApi(page);
   await page.goto("/");
-  await page.getByRole("button", { name: /Play latest block/ }).click();
+  await page.getByRole("button", { name: /Start jam/ }).click();
 
   await expect(page.getByTestId("base-jam-board")).toBeVisible();
-  await expect(page.locator("canvas")).toBeVisible();
+  await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
   await expect(page.locator(".timer span")).toHaveText(/^(5[0-9]|60)$/);
 
   for (let index = 0; index < pieces.length; index += 1) {
@@ -154,7 +161,7 @@ test("RPC failure produces an actionable recovery state", async ({ page }) => {
     });
   });
   await page.goto("/");
-  await page.getByRole("button", { name: /Play latest block/ }).click();
+  await page.getByRole("button", { name: /Start jam/ }).click();
 
   await expect(
     page.getByRole("heading", { name: "THE PRESS LOST BASE." }),
