@@ -114,6 +114,21 @@ function manifestDigest(input: {
   readonly seed: HexString;
   readonly pieces: readonly LevelPieceV1[];
 }): HexString {
+  // Confirmations describe the current RPC tip, not the block itself. Keeping
+  // them in the digest made an otherwise identical level change every time a
+  // new Base block arrived, so a level fetched on the landing screen could be
+  // rejected moments later when the run ticket was created.
+  const canonicalSource = {
+    kind: input.source.kind,
+    number: input.source.number,
+    hash: input.source.hash,
+    timestamp: input.source.timestamp,
+    gasUsed: input.source.gasUsed,
+    gasLimit: input.source.gasLimit,
+    baseFeePerGas: input.source.baseFeePerGas,
+    txCount: input.source.txCount,
+    explorerUrl: input.source.explorerUrl,
+  };
   const canonicalPieces = input.pieces.map((piece) => ({
     id: piece.id,
     hash: piece.hash,
@@ -134,7 +149,7 @@ function manifestDigest(input: {
         schemaVersion: LEVEL_SCHEMA_VERSION,
         rulesetVersion: BASE_JAM_RULESET_VERSION,
         chainId: BASE_CHAIN_ID,
-        source: input.source,
+        source: canonicalSource,
         seed: input.seed,
         pieces: canonicalPieces,
       }),

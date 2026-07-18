@@ -59,6 +59,20 @@ describe("BASE JAM Base level manifests", () => {
     expect(Object.isFrozen(first.pieces)).toBe(true);
   });
 
+  it("keeps a block digest stable as its confirmation count grows", () => {
+    const block = blockWithTransactions([
+      transaction(0),
+      transaction(1),
+      transaction(2),
+    ]);
+    const first = createBaseManifest(block, { tip: BigInt(1_003) });
+    const later = createBaseManifest(block, { tip: BigInt(1_014) });
+
+    expect(first.source.confirmations).toBe(3);
+    expect(later.source.confirmations).toBe(14);
+    expect(first.digest).toBe(later.digest);
+  });
+
   it("makes deterministic practice data explicit and never ranked", () => {
     const first = createPracticeManifest({
       reason: "offline",
