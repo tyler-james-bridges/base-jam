@@ -17,7 +17,7 @@ const mono = Space_Mono({
 
 const appUrl =
   process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-  "https://playbasejam.vercel.app";
+  "https://basejam.0x402.sh";
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
@@ -55,7 +55,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
   themeColor: "#f4eedb",
   colorScheme: "light",

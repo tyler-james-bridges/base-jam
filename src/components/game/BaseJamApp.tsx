@@ -84,6 +84,31 @@ async function loadLevel(blockNumber?: string | null): Promise<LevelApiResponse>
   return response.json() as Promise<LevelApiResponse>;
 }
 
+async function loadPracticeLevel(
+  blockNumber?: string | null,
+): Promise<LevelApiResponse> {
+  const query = blockNumber
+    ? `?block=${encodeURIComponent(blockNumber)}`
+    : "";
+  const response = await fetch(`/api/levels/practice${query}`, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) {
+    throw new Error("Could not prepare the practice plate.");
+  }
+  return response.json() as Promise<LevelApiResponse>;
+}
+
+function practiceSourceLabel(level: LevelManifestV1): string {
+  const requestedBlock = /-for-(\d+)$/.exec(level.source.number)?.[1];
+  if (!requestedBlock) return "Daily deterministic fallback";
+  if (requestedBlock.length <= 14) {
+    return `Requested #${numberLabel(requestedBlock)}`;
+  }
+  return `Requested #${requestedBlock.slice(0, 6)}…${requestedBlock.slice(-6)}`;
+}
+
 function Header({ mode = "home" }: { mode?: Phase }) {
   return (
     <header className="site-header">
@@ -321,14 +346,23 @@ function GameView({
       <section className="game-layout">
         <aside className="game-brief">
           <p className="eyebrow">Live plate</p>
-          <h1>Block {numberLabel(level.source.number)}</h1>
-          <a
-            href={level.source.explorerUrl}
-            rel="noreferrer"
-            target="_blank"
-          >
-            {shortHash(level.source.hash)} ↗
-          </a>
+          {level.source.kind === "base" ? (
+            <>
+              <h1>Block {numberLabel(level.source.number)}</h1>
+              <a
+                href={level.source.explorerUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {shortHash(level.source.hash)} ↗
+              </a>
+            </>
+          ) : (
+            <>
+              <h1>Practice plate</h1>
+              <span className="game-source">{practiceSourceLabel(level)}</span>
+            </>
+          )}
           <dl>
             <div>
               <dt>Packed</dt>
@@ -733,13 +767,21 @@ export function BaseJamApp() {
       .finally(() => setVerifying(false));
   }, [durationMs, finishedState, phase, shareToken, ticket]);
 
-  function practiceLevel(): LevelManifestV1 {
-    const existing = level;
-    if (existing) {
-      return { ...existing, ranked: false, fallbackReason: "User chose practice." };
+  const startPractice = useCallback(async () => {
+    setPhase("loading");
+    try {
+      const practice = (await loadPracticeLevel(requestedBlock)).level;
+      setLevel(practice);
+      await start(practice);
+    } catch (error) {
+      setFatalError(
+        error instanceof Error
+          ? error.message
+          : "Could not prepare the practice plate.",
+      );
+      setPhase("error");
     }
-    throw new Error("Practice manifest is still loading.");
-  }
+  }, [requestedBlock, start]);
 
   if (phase === "loading") return <LoadingView message="CUTTING TRANSACTIONS." />;
   if (phase === "playing" && level) {
@@ -761,13 +803,7 @@ export function BaseJamApp() {
     return (
       <ErrorView
         message={fatalError}
-        onPractice={() => {
-          try {
-            void start(practiceLevel());
-          } catch {
-            setPhase("home");
-          }
-        }}
+        onPractice={() => void startPractice()}
         onRetry={() => {
           void levelQuery.refetch().then((result) => {
             if (result.data?.level) void start(result.data.level);

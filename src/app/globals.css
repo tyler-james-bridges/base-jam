@@ -678,11 +678,14 @@ a {
   line-height: 0.92;
 }
 
-.game-brief > a {
+.game-brief > a,
+.game-source {
+  display: block;
   color: var(--blue);
   font-family: var(--mono);
   font-size: 9px;
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .game-brief dl {
@@ -1242,6 +1245,7 @@ kbd {
 
   .game-brief .eyebrow,
   .game-brief > a,
+  .game-source,
   .game-brief .rank-state {
     display: none;
   }

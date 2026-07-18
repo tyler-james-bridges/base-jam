@@ -129,6 +129,16 @@ test("RPC failure produces an actionable recovery state", async ({ page }) => {
       }),
     });
   });
+  await page.route("**/api/runs/start", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ticket: "signed-practice-ticket",
+        expiresAt: "2026-07-17T20:15:00.000Z",
+        ranked: false,
+      }),
+    });
+  });
   await page.goto("/");
   await page.getByRole("button", { name: /Play latest block/ }).click();
 
@@ -136,4 +146,18 @@ test("RPC failure produces an actionable recovery state", async ({ page }) => {
     page.getByRole("heading", { name: "THE PRESS LOST BASE." }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Retry Base" })).toBeVisible();
+
+  const practiceRunRequest = page.waitForRequest("**/api/runs/start");
+  await page.getByRole("button", { name: "Use practice plate" }).click();
+  await expect.poll(async () => (await practiceRunRequest).postDataJSON()).toMatchObject({
+    practice: true,
+    levelNumber: expect.stringMatching(/^practice-\d{4}-\d{2}-\d{2}$/),
+  });
+  await expect(page.getByTestId("base-jam-board")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Practice plate" }),
+  ).toBeVisible();
+  await expect(page.getByText("Unranked practice")).toHaveText(
+    "Unranked practice",
+  );
 });
