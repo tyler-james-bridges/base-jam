@@ -17,17 +17,17 @@ const mono = Space_Mono({
 
 const appUrl =
   process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-  "https://sqsh.vercel.app";
+  "https://playbasejam.vercel.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
   title: {
-    default: "SQSH — Pack a real Base block",
-    template: "%s · SQSH",
+    default: "BASE JAM — Pack a real Base block",
+    template: "%s · BASE JAM",
   },
   description:
-    "A one-thumb packing game generated from real Base transactions. Same block. Same pieces. Your best SQSH.",
-  applicationName: "SQSH",
+    "A one-thumb packing game generated from real Base transactions. Same block. Same pieces. Your best jam.",
+  applicationName: "BASE JAM",
   category: "game",
   keywords: ["Base", "onchain", "game", "blockchain", "daily challenge"],
   manifest: "/manifest.webmanifest",
@@ -37,15 +37,15 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    title: "SQSH — Pack a real Base block",
+    title: "BASE JAM — Pack a real Base block",
     description:
       "Real Base transactions become one shared 10×10 packing challenge.",
-    siteName: "SQSH",
+    siteName: "BASE JAM",
     images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "SQSH — Pack a real Base block",
+    title: "BASE JAM — Pack a real Base block",
     description:
       "Real Base transactions become one shared 10×10 packing challenge.",
     images: ["/opengraph-image"],

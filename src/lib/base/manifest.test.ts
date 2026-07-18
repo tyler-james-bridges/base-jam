@@ -40,7 +40,7 @@ function blockWithTransactions(transactions: readonly ReturnType<typeof transact
   } as unknown as Parameters<typeof createBaseManifest>[0];
 }
 
-describe("SQSH Base level manifests", () => {
+describe("BASE JAM Base level manifests", () => {
   it("excludes 0x7e deposits and samples no more than 24 pieces deterministically", () => {
     const transactions = [
       transaction(0, "0x7e"),
@@ -51,7 +51,7 @@ describe("SQSH Base level manifests", () => {
     const second = createBaseManifest(block, { tip: BigInt(1_003) });
 
     expect(first.ranked).toBe(true);
-    expect(first.rulesetVersion).toBe("sqsh-v1");
+    expect(first.rulesetVersion).toBe("base-jam-v1");
     expect(first.pieces).toHaveLength(MAX_LEVEL_PIECES);
     expect(first.pieces.every((piece) => piece.type !== "0x7e")).toBe(true);
     expect(first.digest).toBe(second.digest);

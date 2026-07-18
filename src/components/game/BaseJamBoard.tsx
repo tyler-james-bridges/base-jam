@@ -5,34 +5,34 @@ import type {
   CompactTransactionFeatures,
   GameState,
 } from "@/game/simulation";
-import type { SqshGameController } from "@/phaser/createSqshGame";
+import type { BaseJamGameController } from "@/phaser/createBaseJamGame";
 
-interface SqshBoardProps {
+interface BaseJamBoardProps {
   blockHash: string;
-  controllerRef: MutableRefObject<SqshGameController | null>;
+  controllerRef: MutableRefObject<BaseJamGameController | null>;
   onComplete: (state: GameState) => void;
   onInvalid: (message: string) => void;
   onStateChange: (state: GameState) => void;
   transactions: readonly CompactTransactionFeatures[];
 }
 
-export function SqshBoard({
+export function BaseJamBoard({
   blockHash,
   controllerRef,
   onComplete,
   onInvalid,
   onStateChange,
   transactions,
-}: SqshBoardProps) {
+}: BaseJamBoardProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!parentRef.current) return;
     let disposed = false;
 
-    void import("@/phaser/createSqshGame").then(({ createSqshGame }) => {
+    void import("@/phaser/createBaseJamGame").then(({ createBaseJamGame }) => {
       if (disposed || !parentRef.current) return;
-      controllerRef.current = createSqshGame(
+      controllerRef.current = createBaseJamGame(
         parentRef.current,
         { blockHash, transactions },
         {
@@ -59,9 +59,9 @@ export function SqshBoard({
 
   return (
     <div
-      aria-label="SQSH packing board"
-      className="sqsh-canvas"
-      data-testid="sqsh-board"
+      aria-label="BASE JAM packing board"
+      className="base-jam-canvas"
+      data-testid="base-jam-board"
       ref={parentRef}
       role="application"
     />

@@ -1,5 +1,5 @@
-import { SqshApp } from "@/components/game/SqshApp";
+import { BaseJamApp } from "@/components/game/BaseJamApp";
 
 export default function Home() {
-  return <SqshApp />;
+  return <BaseJamApp />;
 }

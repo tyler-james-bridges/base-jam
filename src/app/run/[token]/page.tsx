@@ -45,16 +45,16 @@ export async function generateMetadata({
   const encoded = encodeURIComponent(token);
   return {
     title: `${run.packedPercentage}% on Base block ${run.levelNumber}`,
-    description: `Can you beat this verified SQSH on Base block ${run.levelNumber}?`,
+    description: `Can you beat this verified Base Jam on Base block ${run.levelNumber}?`,
     openGraph: {
-      title: `${run.packedPercentage}% SQSH · Grade ${run.sealGrade}`,
-      description: `Same Base block. Same pieces. Beat this SQSH.`,
+      title: `${run.packedPercentage}% Base Jam · Grade ${run.sealGrade}`,
+      description: `Same Base block. Same pieces. Beat this jam.`,
       images: [`/run/${encoded}/opengraph-image`],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${run.packedPercentage}% SQSH · Grade ${run.sealGrade}`,
-      description: `Same Base block. Same pieces. Beat this SQSH.`,
+      title: `${run.packedPercentage}% Base Jam · Grade ${run.sealGrade}`,
+      description: `Same Base block. Same pieces. Beat this jam.`,
       images: [`/run/${encoded}/opengraph-image`],
     },
   };
@@ -70,7 +70,7 @@ export default async function RunPage({ params }: RunPageProps) {
         <header className="share-header">
           <Link className="brand" href="/">
             <Image alt="" height={38} src="/mark.svg" width={38} />
-            <span>SQSH</span>
+            <span>BASE JAM</span>
             <sup>8453</sup>
           </Link>
         </header>
@@ -96,7 +96,7 @@ export default async function RunPage({ params }: RunPageProps) {
       <header className="share-header">
         <Link className="brand" href="/">
           <Image alt="" height={38} src="/mark.svg" width={38} />
-          <span>SQSH</span>
+          <span>BASE JAM</span>
           <sup>8453</sup>
         </Link>
         <span className="verified-pill">✓ Server replay verified</span>
@@ -104,7 +104,7 @@ export default async function RunPage({ params }: RunPageProps) {
       <section className="share-layout">
         <div className="share-copy">
           <p className="eyebrow">Challenge received / Base {run.levelNumber}</p>
-          <h1>BEAT THIS SQSH.</h1>
+          <h1>BEAT THIS JAM.</h1>
           <p>
             One player packed {run.packedPercentage}% of this exact Base block.
             You get the same transaction shapes, in the same order, for 60
@@ -147,7 +147,7 @@ export default async function RunPage({ params }: RunPageProps) {
         </div>
         <div className="result-card">
           <div className="result-card__top">
-            <span>SQSH</span>
+            <span>BASE JAM</span>
             <small>BASE / 8453</small>
           </div>
           <div className="result-mosaic">

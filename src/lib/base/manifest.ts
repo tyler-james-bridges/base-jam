@@ -11,7 +11,7 @@ import {
   BASE_CHAIN_ID,
   LEVEL_SCHEMA_VERSION,
   MAX_LEVEL_PIECES,
-  SQSH_RULESET_VERSION,
+  BASE_JAM_RULESET_VERSION,
   type HexString,
   type LevelManifestV1,
   type LevelPieceV1,
@@ -132,7 +132,7 @@ function manifestDigest(input: {
     stringToHex(
       JSON.stringify({
         schemaVersion: LEVEL_SCHEMA_VERSION,
-        rulesetVersion: SQSH_RULESET_VERSION,
+        rulesetVersion: BASE_JAM_RULESET_VERSION,
         chainId: BASE_CHAIN_ID,
         source: input.source,
         seed: input.seed,
@@ -182,7 +182,7 @@ export function createBaseManifest(
 
   return deepFreeze({
     schemaVersion: LEVEL_SCHEMA_VERSION,
-    rulesetVersion: SQSH_RULESET_VERSION,
+    rulesetVersion: BASE_JAM_RULESET_VERSION,
     chainId: BASE_CHAIN_ID,
     ranked,
     source,
@@ -233,7 +233,7 @@ export function createPracticeManifest(
   const seedLabel = options.requestedBlockNumber
     ? `${day}:requested:${options.requestedBlockNumber.toString(10)}`
     : `${day}:latest`;
-  const seed = keccak256(stringToHex(`sqsh-practice:${seedLabel}`));
+  const seed = keccak256(stringToHex(`base-jam-practice:${seedLabel}`));
   const pieces = Array.from({ length: 18 }, (_, index) => practicePiece(seed, index));
   const timestamp = `${day}T00:00:00.000Z`;
   const source = {
@@ -254,7 +254,7 @@ export function createPracticeManifest(
 
   return deepFreeze({
     schemaVersion: LEVEL_SCHEMA_VERSION,
-    rulesetVersion: SQSH_RULESET_VERSION,
+    rulesetVersion: BASE_JAM_RULESET_VERSION,
     chainId: BASE_CHAIN_ID,
     ranked: false,
     source,

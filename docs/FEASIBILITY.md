@@ -1,8 +1,8 @@
-# SQSH feasibility and launch decisions
+# BASE JAM feasibility and launch decisions
 
 ## Verdict
 
-SQSH is technically feasible with high confidence as a Base-native deterministic
+BASE JAM is technically feasible with high confidence as a Base-native deterministic
 consumer game.
 
 The game does not need a custom contract. Base supplies the immutable level
@@ -86,7 +86,7 @@ that the player was human.
 
 ## Base app expectations
 
-Current Base apps are standard web apps. SQSH uses wagmi/viem-compatible wallet
+Current Base apps are standard web apps. BASE JAM uses wagmi/viem-compatible wallet
 connectivity and remains playable without a wallet. Base.dev metadata,
 screenshots, builder code, and optional notifications are launch-channel tasks,
 not reasons to block the core game.

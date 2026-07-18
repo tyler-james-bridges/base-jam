@@ -6,7 +6,7 @@ import {
 } from "@/lib/server";
 
 export const runtime = "nodejs";
-export const alt = "A verified SQSH Base block challenge";
+export const alt = "A verified Base Jam block challenge";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -49,7 +49,7 @@ export default async function RunImage({ params }: ImageProps) {
           }}
         >
           <div style={{ display: "flex", fontSize: 24, fontWeight: 800 }}>
-            SQSH <span style={{ color: "#1456f0", marginLeft: 10 }}>/ 8453</span>
+            BASE JAM <span style={{ color: "#1456f0", marginLeft: 10 }}>/ 8453</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div
@@ -72,7 +72,7 @@ export default async function RunImage({ params }: ImageProps) {
                 letterSpacing: "-6px",
               }}
             >
-              {run ? "BEAT THIS SQSH." : "PLATE."}
+              {run ? "BEAT THIS JAM." : "PLATE."}
             </div>
           </div>
           <div style={{ display: "flex", fontSize: 18 }}>

@@ -1,6 +1,6 @@
 export const BASE_CHAIN_ID = 8453 as const;
 export const LEVEL_SCHEMA_VERSION = "1" as const;
-export const SQSH_RULESET_VERSION = "sqsh-v1" as const;
+export const BASE_JAM_RULESET_VERSION = "base-jam-v1" as const;
 export const MAX_LEVEL_PIECES = 24 as const;
 
 export type HexString = `0x${string}`;
@@ -46,7 +46,7 @@ export interface LevelPieceV1 {
  */
 export interface LevelManifestV1 {
   readonly schemaVersion: typeof LEVEL_SCHEMA_VERSION;
-  readonly rulesetVersion: typeof SQSH_RULESET_VERSION;
+  readonly rulesetVersion: typeof BASE_JAM_RULESET_VERSION;
   readonly chainId: typeof BASE_CHAIN_ID;
   readonly ranked: boolean;
   readonly source: LevelSourceV1;

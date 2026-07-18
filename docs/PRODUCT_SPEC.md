@@ -1,8 +1,8 @@
-# SQSH product specification
+# BASE JAM product specification
 
 ## Product thesis
 
-SQSH turns Base blockspace into a fair, daily, 60-second spatial puzzle. A real
+BASE JAM turns Base blockspace into a fair, daily, 60-second spatial puzzle. A real
 buffered Base block produces an ordered bag of up to 24 polyomino pieces. Every
 player receives the same bag and 10×10 board. Their final arrangement becomes a
 signed challenge artifact.
@@ -18,7 +18,7 @@ launch targets are:
 
 ## Player promise
 
-> Same block. Same pieces. Your best SQSH.
+> Same block. Same pieces. Your best jam.
 
 The app never requires a wallet before the player experiences the game.
 
@@ -95,9 +95,9 @@ Post-launch candidates:
 
 ## Brand
 
-Name: **SQSH** (pronounced “squish”)
+Name: **BASE JAM**
 
-Ticker-style identity: **$SQSH**. This is brand architecture only. The MVP does
+Ticker-style identity: **$BJAM**. This is brand architecture only. The MVP does
 not create or imply a tradeable token.
 
 Visual language:
@@ -109,7 +109,7 @@ Visual language:
 - procedural transaction mosaics
 
 Avoid neon cyber grids, token coins, explorer-dashboard chrome, and using the
-Base logo as SQSH’s own identity.
+Base logo as BASE JAM’s own identity.
 
 ## Accessibility
 

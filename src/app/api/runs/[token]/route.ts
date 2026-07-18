@@ -23,7 +23,7 @@ export async function GET(
       throw new ApiError(
         400,
         "INVALID_SHARE_TOKEN",
-        "The SQSH share token is too large.",
+        "The BASE JAM share token is too large.",
       );
     }
 
@@ -33,7 +33,7 @@ export async function GET(
       throw new ApiError(
         401,
         "INVALID_SHARE_TIME",
-        "The SQSH share token was created in the future.",
+        "The BASE JAM share token was created in the future.",
       );
     }
 
@@ -50,7 +50,7 @@ export async function GET(
       new ApiError(
         401,
         "INVALID_SHARE_TOKEN",
-        "This SQSH share token is invalid or no longer verifiable.",
+        "This BASE JAM share token is invalid or no longer verifiable.",
       ),
     );
   }

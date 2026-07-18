@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "SQSH — Pack a real Base block";
+export const alt = "BASE JAM — Pack a real Base block";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -46,7 +46,7 @@ export default function OpenGraphImage() {
               letterSpacing: "-1px",
             }}
           >
-            SQSH <span style={{ color: "#1456f0", marginLeft: 10 }}>/ 8453</span>
+            BASE JAM <span style={{ color: "#1456f0", marginLeft: 10 }}>/ 8453</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div
@@ -59,7 +59,7 @@ export default function OpenGraphImage() {
                 lineHeight: 0.82,
               }}
             >
-              SQSH
+              BASE JAM
             </div>
             <div
               style={{

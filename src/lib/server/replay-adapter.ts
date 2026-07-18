@@ -38,7 +38,7 @@ export function verifyLevelReplay(
     return {
       ok: false,
       code: "LEVEL_HASH_MISMATCH",
-      message: "The replay was created for a different SQSH level.",
+      message: "The replay was created for a different BASE JAM level.",
     };
   }
 
@@ -65,7 +65,7 @@ export function verifyLevelReplay(
     return {
       ok: false,
       code: "GAME_NOT_SEALED",
-      message: "A verified SQSH replay must be sealed.",
+      message: "A verified BASE JAM replay must be sealed.",
     };
   }
 

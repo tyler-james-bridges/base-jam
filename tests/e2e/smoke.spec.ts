@@ -21,7 +21,7 @@ const pieces = Array.from({ length: 18 }, (_, index) => ({
 
 const fixtureLevel = {
   schemaVersion: "1",
-  rulesetVersion: "sqsh-v1",
+  rulesetVersion: "base-jam-v1",
   chainId: 8453,
   ranked: true,
   source: {
@@ -74,9 +74,9 @@ test("home explains the game and loads a Base level", async ({ page }) => {
   await mockPlayableApi(page);
   await page.goto("/");
 
-  await expect(page).toHaveTitle(/SQSH/);
+  await expect(page).toHaveTitle(/BASE JAM/);
   await expect(
-    page.getByRole("heading", { name: "SQSH THE BLOCK." }),
+    page.getByRole("heading", { name: "JAM THE BLOCK." }),
   ).toBeVisible();
   await expect(page.getByText("Block 48,725,123")).toBeVisible();
   await expect(
@@ -91,7 +91,7 @@ test("guest can enter the game and finish an unfilled plate", async ({
   await page.goto("/");
   await page.getByRole("button", { name: /Play latest block/ }).click();
 
-  await expect(page.getByTestId("sqsh-board")).toBeVisible();
+  await expect(page.getByTestId("base-jam-board")).toBeVisible();
   await expect(page.locator("canvas")).toBeVisible();
   await expect(page.locator(".timer span")).toHaveText(/^(5[0-9]|60)$/);
 
@@ -103,7 +103,7 @@ test("guest can enter the game and finish an unfilled plate", async ({
     page.getByRole("heading", { name: "THE BLOCK SPILLED." }),
   ).toBeVisible();
   await expect(page.getByText(/Verified replay/)).toBeVisible();
-  await expect(page.getByRole("button", { name: /SQSH again/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /JAM again/ })).toBeVisible();
 });
 
 test("specific challenge deep link keeps the challenged block", async ({

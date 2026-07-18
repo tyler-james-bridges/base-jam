@@ -7,7 +7,7 @@ export const wagmiConfig = createConfig({
   connectors: [
     injected(),
     coinbaseWallet({
-      appName: "SQSH",
+      appName: "BASE JAM",
       appLogoUrl:
         typeof window === "undefined"
           ? undefined

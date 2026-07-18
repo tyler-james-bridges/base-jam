@@ -752,13 +752,13 @@ a {
   flex-direction: column;
 }
 
-.sqsh-canvas {
+.base-jam-canvas {
   width: 100%;
   aspect-ratio: 1;
   touch-action: none;
 }
 
-.sqsh-canvas canvas {
+.base-jam-canvas canvas {
   display: block;
   width: 100% !important;
   height: 100% !important;

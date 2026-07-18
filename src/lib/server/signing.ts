@@ -14,8 +14,8 @@ import type {
 } from "@/lib/base";
 
 const LOCAL_DEVELOPMENT_SECRET =
-  "sqsh-local-development-signing-key-not-for-production";
-const SIGNATURE_PREFIX = "sqsh.signed.v1.";
+  "base-jam-local-development-signing-key-not-for-production";
+const SIGNATURE_PREFIX = "basejam.signed.v1.";
 const RUN_TICKET_TTL_SECONDS = 15 * 60;
 const MAX_SIGNED_VALUE_BYTES = 4_096;
 
@@ -35,13 +35,13 @@ export class InvalidSignedValueError extends Error {
 
 function signingSecret(): string {
   const configured =
-    process.env.SQSH_RUN_SIGNING_SECRET?.trim() ||
+    process.env.BASE_JAM_RUN_SIGNING_SECRET?.trim() ||
     process.env.RUN_TICKET_SECRET?.trim();
 
   if (configured) {
     if (Buffer.byteLength(configured, "utf8") < 32) {
       throw new SigningConfigurationError(
-        "SQSH_RUN_SIGNING_SECRET must contain at least 32 bytes.",
+        "BASE_JAM_RUN_SIGNING_SECRET must contain at least 32 bytes.",
       );
     }
     return configured;
@@ -49,7 +49,7 @@ function signingSecret(): string {
 
   if (process.env.NODE_ENV === "production") {
     throw new SigningConfigurationError(
-      "SQSH_RUN_SIGNING_SECRET is required in production.",
+      "BASE_JAM_RUN_SIGNING_SECRET is required in production.",
     );
   }
 

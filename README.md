@@ -1,15 +1,15 @@
-# SQSH
+# BASE JAM
 
 Pack a real Base block into a 10×10 square.
 
-SQSH is a deterministic, wallet-optional browser game. It converts a buffered
+BASE JAM is a deterministic, wallet-optional browser game. It converts a buffered
 Base mainnet block into the same ordered set of transaction shapes for every
 player. Runs are replayed by the server before a signed challenge link is
 issued; client-submitted scores are never trusted.
 
 ## Why this exists
 
-Block explorers make chain activity observable. SQSH makes it playable.
+Block explorers make chain activity observable. BASE JAM makes it playable.
 
 - 60-second, one-thumb packing rounds
 - Real transaction-derived pieces
@@ -71,7 +71,7 @@ pnpm test:e2e
 - Deterministic replay verification, not client score acceptance
 - Anonymous local play remains available if wallet flows fail
 
-Wallet signatures prove account control, not that a player is human. SQSH does
+Wallet signatures prove account control, not that a player is human. BASE JAM does
 not claim bot-proof competition or guaranteed virality.
 
 ## Base resources

@@ -22,18 +22,18 @@ const CELL_SIZE = 54;
 const BOARD_SIZE = CELL_SIZE * BOARD_WIDTH;
 const PALETTE = [0x1456f0, 0xff5b45, 0xb6d81d, 0x181818, 0x8f62d8];
 
-export interface SqshGameInput {
+export interface BaseJamGameInput {
   blockHash: string;
   transactions: readonly CompactTransactionFeatures[];
 }
 
-export interface SqshGameBridge {
+export interface BaseJamGameBridge {
   onStateChange: (state: GameState) => void;
   onInvalidPlacement?: (message: string) => void;
   onComplete: (state: GameState) => void;
 }
 
-export interface SqshGameController {
+export interface BaseJamGameController {
   rotate: () => void;
   undo: () => void;
   spill: () => void;
@@ -53,17 +53,17 @@ function pieceColor(state: GameState, pieceId: string): number {
   ];
 }
 
-class SqshScene extends Phaser.Scene {
-  private readonly inputData: SqshGameInput;
-  private readonly bridge: SqshGameBridge;
+class BaseJamScene extends Phaser.Scene {
+  private readonly inputData: BaseJamGameInput;
+  private readonly bridge: BaseJamGameBridge;
   private state: GameState;
   private ink!: Phaser.GameObjects.Graphics;
   private ghostX = 0;
   private ghostY = 0;
   private rotation: QuarterTurn = 0;
 
-  constructor(input: SqshGameInput, bridge: SqshGameBridge) {
-    super({ key: "sqsh-board" });
+  constructor(input: BaseJamGameInput, bridge: BaseJamGameBridge) {
+    super({ key: "base-jam-board" });
     this.inputData = input;
     this.bridge = bridge;
     this.state = createGame({
@@ -298,12 +298,12 @@ class SqshScene extends Phaser.Scene {
   }
 }
 
-export function createSqshGame(
+export function createBaseJamGame(
   parent: HTMLElement,
-  input: SqshGameInput,
-  bridge: SqshGameBridge,
-): SqshGameController {
-  let scene: SqshScene | null = new SqshScene(input, bridge);
+  input: BaseJamGameInput,
+  bridge: BaseJamGameBridge,
+): BaseJamGameController {
+  let scene: BaseJamScene | null = new BaseJamScene(input, bridge);
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent,

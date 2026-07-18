@@ -41,7 +41,7 @@ export async function parseJsonBody<S extends z.ZodType>(
     throw new ApiError(
       400,
       "INVALID_REQUEST",
-      "The request does not match the expected SQSH API format.",
+      "The request does not match the expected BASE JAM API format.",
     );
   }
 
@@ -75,7 +75,7 @@ export function errorResponse(error: unknown): Response {
     {
       error: {
         code: "INTERNAL_ERROR",
-        message: "SQSH could not complete this request.",
+        message: "BASE JAM could not complete this request.",
       },
     },
     500,

@@ -22,7 +22,7 @@ function assertIdentity(
     throw new ApiError(
       409,
       "LEVEL_CHANGED",
-      "The supplied level identity does not match the canonical SQSH level.",
+      "The supplied level identity does not match the canonical BASE JAM level.",
     );
   }
 
@@ -67,7 +67,7 @@ export async function resolveLevelIdentity(
     throw new ApiError(
       400,
       "INVALID_LEVEL",
-      "The level number is not a recognized Base or SQSH practice level.",
+      "The level number is not a recognized Base or BASE JAM practice level.",
     );
   }
 

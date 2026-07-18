@@ -39,7 +39,7 @@ export function stateFingerprint(state: GameState): string {
     state.undoAvailable ? 1 : 0,
   ].join(";");
 
-  return `sqsh1-${fnv1a32(canonical)}`;
+  return `bjam1-${fnv1a32(canonical)}`;
 }
 
 export function createReplay(state: GameState): GameReplay {
@@ -121,7 +121,7 @@ export function verifyReplay(replay: unknown): ReplayVerification {
       error: {
         actionIndex: null,
         code: "INVALID_REPLAY",
-        message: "Replay data does not match version 1 of the SQSH format.",
+        message: "Replay data does not match version 1 of the BASE JAM format.",
       },
     };
   }

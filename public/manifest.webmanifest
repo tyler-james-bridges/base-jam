@@ -1,6 +1,6 @@
 {
-  "name": "SQSH — Pack a real Base block",
-  "short_name": "SQSH",
+  "name": "BASE JAM — Pack a real Base block",
+  "short_name": "BASE JAM",
   "description": "A one-thumb packing game generated from real Base transactions.",
   "start_url": "/",
   "display": "standalone",

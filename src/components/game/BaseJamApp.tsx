@@ -18,8 +18,8 @@ import {
   type ShareRunPayloadV1,
 } from "@/lib/base/types";
 import { levelToSimulationTransactions } from "@/lib/base/simulation";
-import type { SqshGameController } from "@/phaser/createSqshGame";
-import { SqshBoard } from "./SqshBoard";
+import type { BaseJamGameController } from "@/phaser/createBaseJamGame";
+import { BaseJamBoard } from "./BaseJamBoard";
 
 type Phase = "home" | "loading" | "playing" | "result" | "error";
 
@@ -88,7 +88,7 @@ function Header({ mode = "home" }: { mode?: Phase }) {
   return (
     <header className="site-header">
       <button
-        aria-label="Return to SQSH home"
+        aria-label="Return to BASE JAM home"
         className="brand"
         onClick={() => {
           if (mode !== "home") window.location.assign("/");
@@ -96,7 +96,7 @@ function Header({ mode = "home" }: { mode?: Phase }) {
         type="button"
       >
         <Image alt="" height={38} src="/mark.svg" width={38} />
-        <span>SQSH</span>
+        <span>BASE JAM</span>
         <sup>8453</sup>
       </button>
       <div className="header-meta">
@@ -133,7 +133,7 @@ function HomeView({
             <span> / Base 8453</span>
           </p>
           <h1>
-            SQSH
+            JAM
             <br />
             THE BLOCK.
           </h1>
@@ -166,7 +166,7 @@ function HomeView({
             fill
             priority
             sizes="(max-width: 800px) 92vw, 45vw"
-            src="/art/sqsh-riso.png"
+            src="/art/base-jam-riso.png"
           />
           <div className="art-stamp">
             <span>{level ? numberLabel(level.source.number) : "BASE"}</span>
@@ -226,7 +226,7 @@ function HomeView({
           </article>
           <article>
             <span>03</span>
-            <h2>Seal your SQSH.</h2>
+            <h2>Seal your jam.</h2>
             <p>
               Your inputs are replayed by the server. Share the verified
               mosaic and challenge somebody on the exact same block.
@@ -236,7 +236,7 @@ function HomeView({
       </section>
 
       <footer className="site-footer">
-        <strong>SQSH / 8453</strong>
+        <strong>BASE JAM / 8453</strong>
         <span>Built from Base block data. Game state is offchain by design.</span>
         <a href="https://base.org" rel="noreferrer" target="_blank">
           Base ↗
@@ -274,7 +274,7 @@ function GameView({
   onComplete: (state: GameState, image: string | null) => void;
   seconds: number;
 }) {
-  const controllerRef = useRef<SqshGameController | null>(null);
+  const controllerRef = useRef<BaseJamGameController | null>(null);
   const [state, setState] = useState<GameState | null>(null);
   const [notice, setNotice] = useState(
     "Tap a cell to press · R rotates · Space places",
@@ -299,7 +299,7 @@ function GameView({
     setNotice(
       piece
         ? `${piece.kind.replaceAll("_", " ")} · ${piece.cells.length} cells`
-        : "Sealing your SQSH…",
+        : "Sealing your jam…",
     );
   }, []);
 
@@ -359,7 +359,7 @@ function GameView({
             <span>{seconds.toString().padStart(2, "0")}</span>
             <small>seconds</small>
           </div>
-          <SqshBoard
+          <BaseJamBoard
             blockHash={level.source.hash || FALLBACK_BLOCK_HASH}
             controllerRef={controllerRef}
             onComplete={handleComplete}
@@ -489,10 +489,10 @@ function ResultView({
     : window.location.href;
 
   async function share() {
-    const text = `I SQSH'd ${percent}% of Base block ${level.source.number}. Beat this plate.`;
+    const text = `I jammed ${percent}% of Base block ${level.source.number}. Beat this plate.`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: "My SQSH", text, url: shareUrl });
+        await navigator.share({ title: "My Base Jam", text, url: shareUrl });
       } else {
         await navigator.clipboard.writeText(`${text} ${shareUrl}`);
       }
@@ -541,7 +541,7 @@ function ResultView({
               <b aria-hidden>↗</b>
             </button>
             <button className="button button--ink" onClick={onRetry} type="button">
-              SQSH again
+              JAM again
             </button>
           </div>
           <p className="verification-state" aria-live="polite">
@@ -554,7 +554,7 @@ function ResultView({
         </div>
         <div className="result-card">
           <div className="result-card__top">
-            <span>SQSH</span>
+            <span>BASE JAM</span>
             <small>BASE / 8453</small>
           </div>
           <ResultMosaic state={state} />
@@ -601,7 +601,7 @@ function ErrorView({
   );
 }
 
-export function SqshApp() {
+export function BaseJamApp() {
   const [phase, setPhase] = useState<Phase>("home");
   const [level, setLevel] = useState<LevelManifestV1 | null>(null);
   const [ticket, setTicket] = useState<string | null>(null);
@@ -691,9 +691,9 @@ export function SqshApp() {
       setFinishedState(state);
       setPhase("result");
       try {
-        const best = Number(localStorage.getItem("sqsh-best") ?? "0");
+        const best = Number(localStorage.getItem("base-jam-best") ?? "0");
         if (state.score.total > best) {
-          localStorage.setItem("sqsh-best", String(state.score.total));
+          localStorage.setItem("base-jam-best", String(state.score.total));
         }
       } catch {
         // Storage is an enhancement; the run remains valid without it.
