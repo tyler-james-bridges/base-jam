@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     template: "%s · BASE JAM",
   },
   description:
-    "A live rhythm game generated from confirmed Base blocks. Capture four instrument stems and turn chain activity into a 30-second mix.",
+    "A one-thumb rhythm game generated from confirmed Base blocks. Tap the pulse, flick between tracks, and turn 20 seconds of live chain activity into music.",
   applicationName: "BASE JAM",
   category: "game",
   keywords: ["Base", "onchain", "rhythm game", "blockchain", "music game"],
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     type: "website",
     title: "BASE JAM — Play the chain",
     description:
-      "Real Base transactions become a shared four-rail rhythm challenge.",
+      "Tap the live Base pulse and flick between tracks. One thumb, 20 seconds, no wallet.",
     siteName: "BASE JAM",
     images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
   },
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "BASE JAM — Play the chain",
     description:
-      "Real Base transactions become a shared four-rail rhythm challenge.",
+      "Tap the live Base pulse and flick between tracks. One thumb, 20 seconds, no wallet.",
     images: ["/opengraph-image"],
   },
 };

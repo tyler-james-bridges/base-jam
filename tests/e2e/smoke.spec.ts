@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const blockHash =
   "0x8f31a843fc6cd24af9e31f153b712bf3a4b95800997d580cc5f21f1c889ca07f";
@@ -72,6 +72,120 @@ async function mockPlayableApi(page: Page) {
   });
 }
 
+async function dispatchTouchGesture(
+  surface: Locator,
+  {
+    deltaX = 0,
+    deltaY = 0,
+    holdMs = 0,
+    pointerId = 1,
+  }: {
+    deltaX?: number;
+    deltaY?: number;
+    holdMs?: number;
+    pointerId?: number;
+  } = {},
+) {
+  const box = await surface.boundingBox();
+  expect(box).not.toBeNull();
+  const clientX = box!.x + box!.width / 2;
+  const clientY = box!.y + box!.height / 2;
+  await surface.dispatchEvent("pointerdown", {
+    button: 0,
+    buttons: 1,
+    clientX,
+    clientY,
+    isPrimary: true,
+    pointerId,
+    pointerType: "touch",
+  });
+  if (holdMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, holdMs));
+  }
+  await surface.dispatchEvent("pointerup", {
+    button: 0,
+    buttons: 0,
+    clientX: clientX + deltaX,
+    clientY: clientY + deltaY,
+    isPrimary: true,
+    pointerId,
+    pointerType: "touch",
+  });
+}
+
+async function waitForCueReady(page: Page) {
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector(".base-jam-reactor-stage")
+        ?.getAttribute("data-cue-ready") === "true",
+    undefined,
+    { polling: 16, timeout: 6_000 },
+  );
+}
+
+async function hitExpectedCue(
+  page: Page,
+  pointerId: number,
+  fallbackGesture?: { deltaX?: number; deltaY?: number },
+) {
+  const game = page.locator(".pulse-game-layout");
+  const surface = page.locator(".pulse-tap-surface");
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const beforeCue = Number(await game.getAttribute("data-current-cue"));
+    const beforeHits = Number(await game.getAttribute("data-hits"));
+    await waitForCueReady(page);
+    const expected = await game.getAttribute("data-expected-route");
+    const gesture = fallbackGesture ?? {
+      deltaX: expected === "left" ? -80 : expected === "right" ? 80 : 0,
+    };
+    await dispatchTouchGesture(surface, {
+      ...gesture,
+      pointerId: pointerId + attempt * 100,
+    });
+    await page.waitForFunction(
+      ({ cue, hits }) => {
+        const element = document.querySelector(".pulse-game-layout");
+        return (
+          Number(element?.getAttribute("data-hits")) > hits ||
+          Number(element?.getAttribute("data-current-cue")) > cue
+        );
+      },
+      { cue: beforeCue, hits: beforeHits },
+      { polling: 16, timeout: 2_000 },
+    );
+    if (Number(await game.getAttribute("data-hits")) > beforeHits) return;
+  }
+  throw new Error("Five readable cue windows passed without a hit.");
+}
+
+async function judgeWrongTutorialCue(page: Page, pointerId: number) {
+  const game = page.locator(".pulse-game-layout");
+  const surface = page.locator(".pulse-tap-surface");
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const beforeCue = Number(await game.getAttribute("data-current-cue"));
+    const beforeWrong = Number(await game.getAttribute("data-wrong"));
+    await waitForCueReady(page);
+    await dispatchTouchGesture(surface, {
+      deltaX: 80,
+      pointerId: pointerId + attempt * 100,
+    });
+    await page.waitForFunction(
+      ({ cue, wrong }) => {
+        const element = document.querySelector(".pulse-game-layout");
+        return (
+          Number(element?.getAttribute("data-wrong")) > wrong ||
+          Number(element?.getAttribute("data-current-cue")) > cue
+        );
+      },
+      { cue: beforeCue, wrong: beforeWrong },
+      { polling: 16, timeout: 2_000 },
+    );
+    if (Number(await game.getAttribute("data-wrong")) > beforeWrong) return;
+  }
+  throw new Error("Five readable LEFT cues passed without a wrong result.");
+}
+
 test("home makes the live Base rhythm game the focal point", async ({ page }) => {
   await mockPlayableApi(page);
   await page.goto("/");
@@ -82,7 +196,7 @@ test("home makes the live Base rhythm game the focal point", async ({ page }) =>
   ).toBeVisible();
   await expect(page.getByText("Block 48,725,123")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Drop into the set/ }),
+    page.getByRole("button", { name: /Tap to start/ }),
   ).toBeEnabled();
 
   const preview = page.getByTestId("home-mix-preview");
@@ -107,67 +221,143 @@ test("home makes the live Base rhythm game the focal point", async ({ page }) =>
   );
 });
 
-test("guest can enter the set and use keyboard or touch controls", async ({
+test("one thumb can tap, flick, and read the channel HUD in both phone orientations", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await mockPlayableApi(page);
   await page.goto("/");
-  await page.getByRole("button", { name: /Drop into the set/ }).click();
+  await page.getByRole("button", { name: /Tap to start/ }).click();
 
-  await expect(page.getByTestId("base-jam-rhythm")).toBeVisible();
-  await expect(page.locator("canvas")).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator(".rhythm-clock span")).toHaveText(/^(2[89]|30)$/);
-  await expect(page.locator(".rhythm-hit-button").first()).toBeVisible();
-
-  const viewport = page.viewportSize()!;
-  const game = page.locator(".rhythm-game-layout");
-  const selectedRail = page.locator(
-    ".rhythm-lane-buttons button[aria-pressed='true']",
+  await expect(page.getByTestId("base-jam-pulse")).toBeVisible();
+  await expect(
+    page.locator(".base-jam-reactor-stage canvas"),
+  ).toBeVisible({ timeout: 15_000 });
+  const clock = page.locator(".pulse-clock span");
+  await expect(clock).toHaveText(/^\d{2}$/);
+  expect(Number(await clock.textContent())).toBeGreaterThan(0);
+  const target = page.locator(".blockstream-stage__target");
+  await expect(target).toContainText("TAP");
+  await expect(target).toContainText("TOUCH ANYWHERE AT THE LINE");
+  await expect(page.locator(".pulse-notice")).toContainText(
+    /Signal armed|Follow the command line/,
+    { timeout: 2_000 },
   );
 
-  if (viewport.width <= 760) {
-    await expect(game).toHaveAttribute("data-play-mode", "focus");
-    await expect(page.getByText("One-thumb auto rail")).toBeVisible();
-    await expect(page.locator(".rhythm-hit-button")).toHaveCount(3);
-    const selectedBefore = await selectedRail.textContent();
-    await page.keyboard.press("KeyD");
-    await expect(selectedRail).toHaveText(selectedBefore ?? "");
-    const hitBox = await page.locator(".rhythm-hit-button").first().boundingBox();
-    expect(hitBox?.height).toBeGreaterThanOrEqual(80);
-    await page.setViewportSize({ width: 844, height: 390 });
-    const landscapeCanvas = await page
-      .getByTestId("base-jam-rhythm")
-      .boundingBox();
-    const landscapeControls = await page
-      .locator(".rhythm-control-dock")
-      .boundingBox();
-    expect(landscapeCanvas!.y).toBeGreaterThanOrEqual(0);
-    expect(landscapeCanvas!.y + landscapeCanvas!.height).toBeLessThan(390);
-    expect(landscapeControls!.y + landscapeControls!.height).toBeLessThanOrEqual(
-      390,
-    );
-  } else {
-    await expect(game).toHaveAttribute("data-play-mode", "manual");
-    await page.keyboard.press("KeyD");
-    await expect(selectedRail).toContainText("BASS");
-    await expect(page.locator(".rhythm-hit-button")).toHaveCount(3);
-  }
+  const game = page.locator(".pulse-game-layout");
+  const tapSurface = page.locator(".pulse-tap-surface");
+  await expect(game).toHaveAttribute("data-play-mode", "tap-flick");
+  await expect(game).toHaveAttribute("data-tutorial-step", "0");
+  await expect(game).toHaveAttribute("data-expected-route", "tap");
+  await expect(page.locator(".rhythm-hit-button")).toHaveCount(0);
+  await expect(page.locator(".rhythm-lane-buttons")).toHaveCount(0);
+  await expect(page.locator(".pulse-channel-statuses > span")).toHaveCount(4);
+  await expect(page.locator(".pulse-channel-statuses")).toBeVisible();
+  await expect(page.locator(".pulse-phrase-status i")).toHaveCount(2);
 
-  await page.locator(".rhythm-hit-button").nth(1).click();
+  const tapBox = await tapSurface.boundingBox();
+  expect(tapBox).not.toBeNull();
+  expect(tapBox!.width).toBeGreaterThan(390 * 0.82);
+
+  // The home CTA starts the run. A vertical or short release is a tap, so
+  // normal thumb drift never falls into a silent gesture dead zone.
+  await hitExpectedCue(page, 10, { deltaY: 80 });
+  await expect(game).toHaveAttribute("data-tutorial-step", "1");
+  await expect(game).toHaveAttribute("data-last-gesture", "tap");
+  await page.waitForTimeout(110);
+  await hitExpectedCue(page, 11);
+  await expect(game).toHaveAttribute("data-tutorial-step", "2");
+  await expect(game).toHaveAttribute("data-expected-route", "left");
+
+  // The tutorial advances on successful commands, not gestures alone.
+  await page.waitForTimeout(110);
+  await judgeWrongTutorialCue(page, 12);
+  await expect(game).toHaveAttribute("data-tutorial-step", "2");
+  await expect(game).toHaveAttribute("data-wrong", "1");
+  await expect(game).toHaveAttribute("data-combo", "0");
+  await expect(game).toHaveAttribute("data-expected-route", "left");
+
+  await page.waitForTimeout(110);
+  await hitExpectedCue(page, 13);
+  await expect(game).toHaveAttribute("data-tutorial-step", "3");
+  await expect(game).toHaveAttribute("data-last-gesture", "flick-left");
+  await expect(game).toHaveAttribute("data-expected-route", "right");
+
+  await page.waitForTimeout(110);
+  await hitExpectedCue(page, 14);
+  expect(Number(await game.getAttribute("data-combo"))).toBeGreaterThan(0);
+  await expect(game).toHaveAttribute("data-tutorial-step", "4");
+  await expect(game).toHaveAttribute("data-last-gesture", "flick-right");
+  await expect(game).toHaveAttribute("data-hits", "4");
+  await expect(game).toHaveAttribute("data-wrong", "1");
+  await expect(page.locator(".pulse-phrase-status")).toBeVisible();
+
   await page.getByRole("button", { name: /Sound on/i }).click();
   await expect(page.getByRole("button", { name: /Sound off/i })).toBeVisible();
 
+  const portraitCanvas = await page.getByTestId("base-jam-pulse").boundingBox();
+  expect(portraitCanvas!.y).toBeGreaterThanOrEqual(0);
+  expect(portraitCanvas!.y + portraitCanvas!.height).toBeLessThanOrEqual(844);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
-    await page.evaluate(() => window.innerWidth),
+    390,
   );
+
+  await page.setViewportSize({ width: 844, height: 390 });
+  const landscapeCanvas = await page.getByTestId("base-jam-pulse").boundingBox();
+  const landscapeFooter = await page.locator(".pulse-game-footer").boundingBox();
+  expect(landscapeCanvas!.y).toBeGreaterThanOrEqual(0);
+  expect(landscapeCanvas!.y + landscapeCanvas!.height).toBeLessThanOrEqual(390);
+  expect(landscapeFooter!.y + landscapeFooter!.height).toBeLessThanOrEqual(390);
+  await expect(page.locator(".pulse-channel-statuses")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    844,
+  );
+});
+
+test("procedural 3D scene plays without external model downloads", async ({
+  page,
+}) => {
+  let modelRequests = 0;
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await mockPlayableApi(page);
+  await page.route("**/models/**", async (route) => {
+    modelRequests += 1;
+    await route.abort();
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: /Tap to start/ }).click();
+
+  const game = page.locator(".pulse-game-layout");
+  const tapSurface = page.locator(".pulse-tap-surface");
+  const target = page.locator(".blockstream-stage__target");
+  await expect(game).toHaveAttribute("data-play-mode", "tap-flick");
+  await expect(tapSurface).toBeVisible();
+
+  await expect(target).toContainText("TOUCH ANYWHERE AT THE LINE");
+  await hitExpectedCue(page, 30);
+  await expect(game).toHaveAttribute("data-tutorial-step", "1");
+  await expect(game).toHaveAttribute("data-hits", "1");
+  expect(modelRequests).toBe(0);
+  expect(pageErrors).toEqual([]);
 });
 
 test("specific block deep link keeps the challenged source", async ({ page }) => {
   await mockPlayableApi(page);
   await page.goto("/?block=48725123");
   await expect(page.getByText("Challenge #48,725,123")).toBeVisible();
-  await page.getByRole("button", { name: /Drop into the set/ }).click();
-  await expect(page.getByRole("heading", { name: "BASE #48,725,123" })).toBeVisible();
+  await page.getByRole("button", { name: /Tap to start/ }).click();
+  if (page.viewportSize()!.width <= 760) {
+    await expect(page.locator(".pulse-live-chip__mobile")).toHaveAttribute(
+      "title",
+      "Base block 48,725,123",
+    );
+  } else {
+    await expect(
+      page.getByRole("heading", { name: "BASE #48,725,123" }),
+    ).toBeVisible();
+  }
 });
 
 test("RPC failure offers a playable, honestly labeled practice mix", async ({
@@ -187,13 +377,13 @@ test("RPC failure offers a playable, honestly labeled practice mix", async ({
   });
 
   await page.goto("/");
-  await page.getByRole("button", { name: /Drop into the set/ }).click();
+  await page.getByRole("button", { name: /Tap to start/ }).click();
   await expect(
     page.getByRole("heading", { name: "THE FEED LOST BASE." }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Retry Base" })).toBeVisible();
 
   await page.getByRole("button", { name: "Use practice mix" }).click();
-  await expect(page.getByTestId("base-jam-rhythm")).toBeVisible();
-  await expect(page.getByText("Practice sequence")).toBeVisible();
+  await expect(page.getByTestId("base-jam-pulse")).toBeVisible();
+  await expect(page.locator(".pulse-live-chip")).toContainText("Practice");
 });

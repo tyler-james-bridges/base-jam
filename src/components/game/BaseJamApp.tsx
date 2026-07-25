@@ -8,29 +8,29 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
-import { armRhythmAudio } from "@/audio/rhythmAudio";
+import { armPulseAudio } from "@/audio/pulseAudio";
 import { WalletButton } from "@/components/WalletButton";
 import {
-  createRhythmChart,
-  RHYTHM_LANES,
-  RHYTHM_RUN_SECONDS,
-  RHYTHM_STEP_SECONDS,
-  rhythmAccuracy,
-  rhythmFocusLane,
-  rhythmResult,
-  type RhythmChart,
-  type RhythmColumn,
-  type RhythmLane,
-  type RhythmState,
-} from "@/game/rhythm";
+  createPulseChart,
+  PULSE_LAYERS,
+  PULSE_RUN_SECONDS,
+  PULSE_STEP_SECONDS,
+  pulseComboMultiplier,
+  pulseExpectedRoute,
+  pulseResult,
+  type PulseChart,
+  type PulseState,
+} from "@/game/pulse";
 import type {
   LevelApiResponse,
   LevelManifestV1,
   MixApiResponse,
 } from "@/lib/base/types";
-import type { BaseJamRhythmController } from "@/phaser/createBaseJamRhythmGame";
-import { BaseJamRhythmBoard } from "./BaseJamRhythmBoard";
+import type { BaseJamPulseController } from "@/phaser/createBaseJamPulseGame";
+import { BaseJamPulseBoard } from "./BaseJamPulseBoard";
 
 type Phase = "home" | "loading" | "playing" | "result" | "error";
 
@@ -39,10 +39,6 @@ function numberLabel(value: string) {
   return Number.isFinite(numeric)
     ? new Intl.NumberFormat("en-US").format(numeric)
     : value;
-}
-
-function shortHash(hash: string) {
-  return `${hash.slice(0, 8)}…${hash.slice(-6)}`;
 }
 
 async function loadLevel(blockNumber?: string | null): Promise<LevelApiResponse> {
@@ -130,38 +126,42 @@ function HomeMixPreview({
   const signals = level?.pieces.slice(0, 18) ?? [];
 
   return (
-    <div className="home-mix-preview" data-testid="home-mix-preview">
-      <div className="mix-preview-grid" aria-hidden>
-        {Array.from({ length: 6 }, (_, index) => (
-          <i key={index} />
-        ))}
+    <div
+      className="home-mix-preview home-pulse-preview"
+      data-testid="home-mix-preview"
+    >
+      <div className="pulse-preview-grid" aria-hidden />
+      <div className="pulse-preview-track" aria-hidden />
+      <div className="pulse-preview-target" aria-hidden>
+        <i />
+        <span>TAP</span>
       </div>
-      <div className="mix-preview-hitline" aria-hidden>
-        <span>HIT</span>
+      <div className="pulse-preview-block" aria-hidden>
+        <i />
+        <i />
+        <i />
       </div>
-      <div className="mix-preview-rails" aria-hidden>
-        {RHYTHM_LANES.map((lane) => (
-          <div className="mix-preview-rail" key={lane.id}>
-            <b style={{ background: lane.color }}>{lane.name}</b>
-            <span style={{ borderColor: lane.color }} />
-          </div>
-        ))}
-      </div>
-      <div className="mix-preview-signals" aria-hidden>
+      <div className="pulse-preview-transactions" aria-hidden>
         {signals.map((signal, index) => {
           const hashByte =
-            Number.parseInt(signal.hash.slice(2 + (index % 12) * 2, 4 + (index % 12) * 2), 16) ||
+            Number.parseInt(
+              signal.hash.slice(
+                2 + (index % 12) * 2,
+                4 + (index % 12) * 2,
+              ),
+              16,
+            ) ||
             index * 13;
-          const lane = (index % 4) as RhythmLane;
+          const layer = PULSE_LAYERS[index % PULSE_LAYERS.length];
           return (
             <i
               key={`${signal.id}-${index}`}
               style={
                 {
-                  "--lane": lane,
-                  "--signal-color": RHYTHM_LANES[lane].color,
-                  "--signal-x": `${31 + (hashByte % 57)}%`,
-                  "--signal-y": `${20 + lane * 20}%`,
+                  "--signal-color": layer.color,
+                  "--signal-x": `${54 + (hashByte % 38)}%`,
+                  "--signal-y": `${36 + (hashByte % 30)}%`,
+                  "--signal-size": `${5 + (hashByte % 10)}px`,
                 } as CSSProperties
               }
             />
@@ -170,12 +170,12 @@ function HomeMixPreview({
       </div>
       <div className="mix-preview-start">
         <small>
-          {level?.ranked ? "15 confirmed Base blocks" : "Practice feed ready"}
+          {level?.ranked ? "10 confirmed Base blocks" : "Practice feed ready"}
         </small>
         <strong>
           {challengeBlock
             ? `Challenge #${numberLabel(challengeBlock)}`
-            : "Start the live mix"}
+            : "One thumb. Live chain."}
         </strong>
         <button
           className="button button--primary"
@@ -183,10 +183,10 @@ function HomeMixPreview({
           onClick={onPlay}
           type="button"
         >
-          <span>{loading ? "Reading Base…" : "Drop into the set"}</span>
+          <span>{loading ? "Reading Base…" : "Tap to start"}</span>
           <b aria-hidden>↗</b>
         </button>
-        <em>No wallet required · one-thumb mode on phones</em>
+        <em>No wallet · 20 seconds · 31 live commands</em>
       </div>
     </div>
   );
@@ -211,7 +211,7 @@ function HomeView({
       <section className="arcade-home rhythm-arcade-home">
         <div className="arcade-brief rhythm-brief">
           <p className="eyebrow">
-            The live Base rhythm game
+            The one-thumb Base rhythm game
             <span> / 120 BPM</span>
           </p>
           <h1>
@@ -220,8 +220,9 @@ function HomeView({
             THE CHAIN.
           </h1>
           <p className="hero-deck">
-            Real Base transactions become notes. Phones auto-focus one
-            instrument at a time, so one thumb can capture the whole mix.
+            Ride the Base signal tunnel. Tap, flick left, or flick right as
+            each command reaches the capture line. Clear a block phrase and
+            its music channel joins the mix.
           </p>
           <div className="ready-block" aria-live="polite">
             <span>Now sequencing</span>
@@ -264,7 +265,7 @@ function HomeView({
             onPlay={onPlay}
           />
           <div className="ready-stage__bottom">
-            <span>Phone: tap high / mid / low · Desktop: A/D + J K L</span>
+            <span>Tap to stay · flick left or right to switch tracks</span>
             <a
               href={level?.source.explorerUrl ?? "https://basescan.org"}
               rel="noreferrer"
@@ -275,25 +276,25 @@ function HomeView({
           </div>
         </section>
 
-        <aside className="ready-queue rhythm-queue">
-          <div className="ready-timer" aria-label="30 second live set">
-            <span>{RHYTHM_RUN_SECONDS}</span>
-            <small>seconds / 15 Base bars</small>
+        <aside className="ready-queue rhythm-queue pulse-queue">
+          <div className="ready-timer" aria-label="20 second live set">
+            <span>{PULSE_RUN_SECONDS}</span>
+            <small>seconds / 10 live blocks</small>
           </div>
-          <p className="eyebrow">Four rails / one mix</p>
-          <div className="stem-stack">
-            {RHYTHM_LANES.map((lane, index) => (
-              <div key={lane.id}>
-                <i style={{ background: lane.color }} />
+          <p className="eyebrow">One thumb / growing mix</p>
+          <div className="stem-stack pulse-layer-stack">
+            {PULSE_LAYERS.map((layer, index) => (
+              <div key={layer.id}>
+                <i style={{ background: layer.color }} />
                 <small>0{index + 1}</small>
-                <strong>{lane.name}</strong>
+                <strong>{layer.name}</strong>
               </div>
             ))}
           </div>
           <div className="ready-rules">
-            <span>Same blocks</span>
-            <span>Same chart</span>
-            <span>Your timing</span>
+            <span>Tap · left · right</span>
+            <span>Misses reset combo</span>
+            <span>Live Base data</span>
           </div>
         </aside>
 
@@ -323,24 +324,27 @@ function HomeView({
             <span>01</span>
             <h2>Read the block.</h2>
             <p>
-              Each two-second bar is a confirmed Base block. Transaction hash,
-              calldata, gas, and fees decide the notes.
+              Every phrase comes from a confirmed Base block. Its
+              transactions, gas, and calldata shape the command pattern,
+              energy, and sound.
             </p>
           </article>
           <article>
             <span>02</span>
-            <h2>Capture a stem.</h2>
+            <h2>Hit the capture bar.</h2>
             <p>
-              Phones automatically focus one instrument per block—just hit
-              high, mid, and low. Desktop players can switch rails manually.
+              Follow the bright command: tap, flick left, or flick right as
+              it enters the lime capture line. The first four hits teach every
+              move.
             </p>
           </article>
           <article>
             <span>03</span>
-            <h2>Keep it alive.</h2>
+            <h2>Make it bloom.</h2>
             <p>
-              Captured stems play for four bars. Move with the chain, rebuild
-              the mix, and leave with a block-by-block performance receipt.
+              Hit at least three quarters of a block phrase to bring its music
+              channel live. A miss breaks combo, never the run, so the next
+              command is always a clean recovery.
             </p>
           </article>
         </div>
@@ -369,243 +373,457 @@ function LoadingView() {
           <span />
         </div>
         <p className="eyebrow">Building the live set</p>
-        <h1>SYNCING 15 BARS.</h1>
+        <h1>BUILDING 10 PHRASES.</h1>
         <p>
-          Quantizing confirmed Base transactions into a 120 BPM rhythm chart.
+          Turning confirmed Base activity into 31 readable rhythm commands.
         </p>
       </section>
     </main>
   );
 }
 
+type PendingPulseInput =
+  | { readonly kind: "tap" }
+  | {
+      readonly kind: "route";
+      readonly direction: -1 | 0 | 1;
+      readonly pointerStartedAt?: number;
+    };
+
+type GestureLabel = "none" | "tap" | "flick-left" | "flick-right";
+
+interface PointerGesture {
+  readonly pointerId: number;
+  readonly startX: number;
+  readonly startY: number;
+  readonly startedAt: number;
+}
+
+const INPUT_DEBOUNCE_MS = 90;
+
 function GameView({
   audioContext,
   chart,
-  focusMode,
   onComplete,
 }: {
   audioContext: AudioContext | null;
-  chart: RhythmChart;
-  focusMode: boolean;
-  onComplete: (state: RhythmState, image: string | null) => void;
+  chart: PulseChart;
+  onComplete: (state: PulseState, image: string | null) => void;
 }) {
-  const controllerRef = useRef<BaseJamRhythmController | null>(null);
-  const [state, setState] = useState<RhythmState | null>(null);
+  const controllerRef = useRef<BaseJamPulseController | null>(null);
+  const pendingInputsRef = useRef<PendingPulseInput[]>([]);
+  const pointerGestureRef = useRef<PointerGesture | null>(null);
+  const runtimeReadyRef = useRef(false);
+  const autoStartedRef = useRef(false);
+  const lastInputAtRef = useRef(-Infinity);
+  const feedbackTimerRef = useRef<number | null>(null);
+  const [state, setState] = useState<PulseState | null>(null);
   const [notice, setNotice] = useState(
-    focusMode
-      ? "One-thumb mode · tap high, mid, low at the red line"
-      : "A / D switch rails · J K L hit the three note columns",
+    "Get ready · tap, flick left, or flick right",
   );
+  const [feedback, setFeedback] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
+  const [lastGesture, setLastGesture] = useState<GestureLabel>("none");
   const handleComplete = useCallback(
-    (finished: RhythmState, image: string | null) => {
+    (finished: PulseState, image: string | null) => {
       onComplete(finished, image);
     },
     [onComplete],
   );
+
+  const sendInput = useCallback((input: PendingPulseInput) => {
+    const controller = controllerRef.current;
+    if (!runtimeReadyRef.current || !controller) {
+      pendingInputsRef.current.push(input);
+      return;
+    }
+    if (input.kind === "tap") {
+      controller.tap();
+      return;
+    }
+    controller.route(input.direction, input.pointerStartedAt);
+  }, []);
+
+  const triggerInput = useCallback(
+    (input: PendingPulseInput, gesture: Exclude<GestureLabel, "none">) => {
+      const now = performance.now();
+      if (now - lastInputAtRef.current < INPUT_DEBOUNCE_MS) return false;
+      lastInputAtRef.current = now;
+      setLastGesture(gesture);
+      sendInput(input);
+      return true;
+    },
+    [sendInput],
+  );
+
+  const triggerTap = useCallback(() => {
+    return triggerInput({ kind: "tap" }, "tap");
+  }, [triggerInput]);
+
+  const triggerRoute = useCallback(
+    (direction: -1 | 1, pointerStartedAt?: number) => {
+      return triggerInput(
+        { direction, kind: "route", pointerStartedAt },
+        direction < 0 ? "flick-left" : "flick-right",
+      );
+    },
+    [triggerInput],
+  );
+
+  const triggerPointerTap = useCallback(
+    (pointerStartedAt: number) => {
+      return triggerInput(
+        { direction: 0, kind: "route", pointerStartedAt },
+        "tap",
+      );
+    },
+    [triggerInput],
+  );
+
   const handleReady = useCallback(() => {
-    setNotice(
-      focusMode
-        ? "Auto-focus is on · you only need the three big pads"
-        : "Follow the pulse · complete a phrase to capture its stem",
-    );
-  }, [focusMode]);
-  const handleState = useCallback((next: RhythmState) => {
+    runtimeReadyRef.current = true;
+    setNotice("Follow the command line");
+    const pendingInputs = pendingInputsRef.current.splice(0);
+    requestAnimationFrame(() => {
+      if (!autoStartedRef.current) {
+        autoStartedRef.current = true;
+        controllerRef.current?.tap();
+      }
+      if (pendingInputs.length > 0) {
+        requestAnimationFrame(() => {
+        pendingInputs.forEach((input) => {
+          if (input.kind === "tap") {
+            controllerRef.current?.tap();
+          } else {
+            controllerRef.current?.route(
+              input.direction,
+              input.pointerStartedAt,
+            );
+          }
+        });
+        });
+      }
+    });
+  }, []);
+
+  const handleSurfaceKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLElement>) => {
+      if (event.repeat) return;
+      const key = event.key.toLowerCase();
+      if ([" ", "enter", "j"].includes(key)) {
+        event.preventDefault();
+        triggerTap();
+      } else if (key === "arrowleft" || key === "a") {
+        event.preventDefault();
+        triggerRoute(-1, performance.now());
+      } else if (key === "arrowright" || key === "d") {
+        event.preventDefault();
+        triggerRoute(1, performance.now());
+      }
+    },
+    [triggerRoute, triggerTap],
+  );
+
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      if (!event.isPrimary || event.button !== 0) return;
+      event.preventDefault();
+      const startedAt = performance.now();
+      pointerGestureRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startedAt,
+      };
+      try {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      } catch {
+        // Synthetic pointer events do not always register as active pointers.
+      }
+    },
+    [],
+  );
+
+  const handlePointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      const gesture = pointerGestureRef.current;
+      if (
+        !event.isPrimary ||
+        !gesture ||
+        gesture.pointerId !== event.pointerId
+      ) {
+        return;
+      }
+      event.preventDefault();
+      pointerGestureRef.current = null;
+      try {
+        if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+      } catch {
+        // A system-level pointer cancellation may already have released it.
+      }
+      const deltaX = event.clientX - gesture.startX;
+      const deltaY = event.clientY - gesture.startY;
+      const flickThreshold = Math.min(
+        44,
+        Math.max(28, window.innerWidth * 0.08),
+      );
+      if (
+        Math.abs(deltaX) >= flickThreshold &&
+        Math.abs(deltaX) > Math.abs(deltaY)
+      ) {
+        triggerRoute(deltaX < 0 ? -1 : 1, gesture.startedAt);
+        return;
+      }
+      triggerPointerTap(gesture.startedAt);
+    },
+    [triggerPointerTap, triggerRoute],
+  );
+
+  const handlePointerCancel = useCallback(
+    (event: ReactPointerEvent<HTMLElement>) => {
+      if (pointerGestureRef.current?.pointerId !== event.pointerId) return;
+      pointerGestureRef.current = null;
+      try {
+        if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+      } catch {
+        // A system-level pointer cancellation may already have released it.
+      }
+    },
+    [],
+  );
+
+  const handleState = useCallback((next: PulseState) => {
     setState(next);
   }, []);
   const handleFeedback = useCallback((message: string) => {
     setNotice(message);
+    setFeedback(message);
+    if (feedbackTimerRef.current !== null) {
+      window.clearTimeout(feedbackTimerRef.current);
+    }
+    feedbackTimerRef.current = window.setTimeout(() => {
+      setFeedback(null);
+      feedbackTimerRef.current = null;
+    }, 1_050);
   }, []);
   const handleMuted = useCallback((next: boolean) => {
     setMuted(next);
   }, []);
 
-  const currentBar = state?.currentBar ?? 0;
-  const elapsed = (state?.currentStep ?? 0) * RHYTHM_STEP_SECONDS;
-  const remaining = Math.max(0, Math.ceil(chart.durationSeconds - elapsed));
-  const accuracy = state ? rhythmAccuracy(state) : 0;
-  const progress = Math.min(100, (elapsed / chart.durationSeconds) * 100);
-  const activeStems = state
-    ? state.capturedUntilBar.filter((until) => until > currentBar).length
-    : 0;
-  const bar = chart.bars[currentBar] ?? chart.bars[0];
-  const selectedLane =
-    state?.selectedLane ??
-    (focusMode ? rhythmFocusLane(chart, currentBar) : 0);
-  const focusedLane = RHYTHM_LANES[selectedLane];
-  const nextFocusedLane =
-    RHYTHM_LANES[rhythmFocusLane(chart, currentBar + 1)];
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.repeat) return;
+      const key = event.key.toLowerCase();
+      if (key === "m") {
+        controllerRef.current?.toggleMuted();
+        return;
+      }
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest(
+          'button, a, input, select, textarea, [contenteditable="true"]',
+        )
+      ) {
+        return;
+      }
+      if ([" ", "enter", "j"].includes(key)) {
+        event.preventDefault();
+        triggerTap();
+      } else if (key === "arrowleft" || key === "a") {
+        event.preventDefault();
+        triggerRoute(-1, performance.now());
+      } else if (key === "arrowright" || key === "d") {
+        event.preventDefault();
+        triggerRoute(1, performance.now());
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [triggerRoute, triggerTap]);
 
-  function hit(column: RhythmColumn) {
-    controllerRef.current?.hit(column);
-  }
+  useEffect(
+    () => () => {
+      if (feedbackTimerRef.current !== null) {
+        window.clearTimeout(feedbackTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const currentEvent = state?.currentEvent ?? 0;
+  const songTime = (state?.currentStep ?? -16) * PULSE_STEP_SECONDS;
+  const elapsed = Math.max(0, songTime);
+  const remaining = Math.max(0, Math.ceil(chart.durationSeconds - elapsed));
+  const event = chart.events[currentEvent] ?? chart.events[0];
+  const sealed = state?.sealed ?? 0;
+  const tutorialStep = state?.tutorialStep ?? 0;
+  const activeChannel = (state?.activeFace ?? 0) % PULSE_LAYERS.length;
+  const currentCue = chart.cues[state?.currentCue ?? 0];
+  const expectedRoute = currentCue
+    ? pulseExpectedRoute(currentCue, tutorialStep)
+    : 0;
+  const expectedRouteLabel =
+    expectedRoute < 0 ? "left" : expectedRoute > 0 ? "right" : "tap";
+  const phraseCues = chart.cues.filter(
+    (cue) => cue.eventIndex === currentEvent,
+  );
+  const hits = (state?.perfect ?? 0) + (state?.good ?? 0);
+  const multiplier = pulseComboMultiplier(state?.streak ?? 0);
 
   return (
-    <main
-      className={`game-shell rhythm-game-shell ${focusMode ? "focus-mode-shell" : ""}`}
-    >
+    <main className="game-shell pulse-game-shell">
       <Header mode="playing" />
       <section
-        className={`rhythm-game-layout ${focusMode ? "is-focus-mode" : ""}`}
-        data-play-mode={focusMode ? "focus" : "manual"}
+        className="pulse-game-layout"
+        data-active-face={state?.activeFace ?? 0}
+        data-combo={state?.streak ?? 0}
+        data-current-cue={state?.currentCue ?? 0}
+        data-current-event={currentEvent}
+        data-current-step={state?.currentStep ?? -16}
+        data-expected-route={expectedRouteLabel}
+        data-hits={hits}
+        data-last-gesture={lastGesture}
+        data-misses={state?.misses ?? 0}
+        data-play-mode="tap-flick"
+        data-sealed={sealed}
+        data-tutorial-step={tutorialStep}
+        data-wrong={state?.wrong ?? 0}
       >
-        <aside className="rhythm-hud">
-          <div className="rhythm-hud__block">
-            <p className="eyebrow">Live mix / bar {currentBar + 1}</p>
-            <h1>BASE #{numberLabel(bar.blockNumber)}</h1>
-            <a href={bar.explorerUrl} rel="noreferrer" target="_blank">
-              {shortHash(bar.blockHash)} ↗
-            </a>
-          </div>
-          <dl>
-            <div>
-              <dt>Score</dt>
-              <dd>{state?.score.toLocaleString() ?? "0"}</dd>
-            </div>
-            <div>
-              <dt>Combo</dt>
-              <dd>{state?.combo ?? 0}×</dd>
-            </div>
-            <div>
-              <dt>Stems</dt>
-              <dd>{activeStems}/4</dd>
-            </div>
-            <div>
-              <dt>Accuracy</dt>
-              <dd>{accuracy}%</dd>
-            </div>
-          </dl>
-          <div className="rhythm-progress">
-            <span style={{ width: `${progress}%` }} />
-          </div>
-          <p className="rhythm-chain-state">
-            <i className={chart.ranked ? "ranked" : ""} />
-            {chart.ranked ? "Confirmed Base sequence" : "Practice sequence"}
-          </p>
-        </aside>
-
-        <section className="rhythm-stage">
-          {focusMode ? (
-            <div
-              className="rhythm-focus-prompt"
-              style={{ "--lane-color": focusedLane.color } as CSSProperties}
+        <div className="pulse-game-hud">
+          <div className="pulse-live-chip">
+            <span>
+              <i className={chart.ranked ? "ranked" : ""} />
+              {chart.ranked ? "Live Base" : "Practice"}
+            </span>
+            <h1 className="pulse-live-chip__desktop">
+              BASE #{numberLabel(event.blockNumber)}
+            </h1>
+            <h1
+              className="pulse-live-chip__mobile"
+              title={`Base block ${numberLabel(event.blockNumber)}`}
             >
-              <small>One-thumb auto rail</small>
-              <strong>{focusedLane.name}</strong>
-              <span>Next: {nextFocusedLane.name}</span>
+              BLOCK {Math.min(currentEvent + 1, chart.events.length)} /{" "}
+              {chart.events.length}
+            </h1>
+            <div
+              aria-label="Temporary music channels"
+              className="pulse-channel-statuses"
+            >
+              {PULSE_LAYERS.map((layer, index) => {
+                const captures = state?.channelCaptures[index] ?? 0;
+                const isLive =
+                  (state?.capturedUntilBar[index] ?? 0) > currentEvent;
+                return (
+                  <span
+                    aria-label={`${layer.name}: ${
+                      isLive ? "live" : "off"
+                    }${activeChannel === index ? ", selected" : ""}`}
+                    className={[
+                      isLive ? "is-live" : "",
+                      captures > 0 && !isLive ? "is-expired" : "",
+                      activeChannel === index ? "is-active" : "",
+                      state?.lastRoutedLayer === index ? "is-routed" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    data-captures={captures}
+                    data-live={isLive}
+                    key={layer.id}
+                    style={{ "--layer-color": layer.color } as CSSProperties}
+                  >
+                    <i />
+                    <b>{layer.name}</b>
+                    <small>{isLive ? "LIVE" : "OFF"}</small>
+                  </span>
+                );
+              })}
             </div>
-          ) : null}
-          <div className={`rhythm-clock ${remaining <= 5 ? "is-urgent" : ""}`}>
-            <span>{remaining.toString().padStart(2, "0")}</span>
-            <small>seconds</small>
           </div>
-          <BaseJamRhythmBoard
+          <div className="pulse-center-hud">
+            <div
+              aria-label={`Block phrase ${currentEvent + 1} progress`}
+              className="pulse-phrase-status"
+            >
+              <strong>
+                PHRASE {Math.min(currentEvent + 1, chart.events.length)} /{" "}
+                {chart.events.length}
+              </strong>
+              <span>
+                {phraseCues.map((cue) => {
+                  const result = state?.cueResults[cue.id];
+                  return (
+                    <i
+                      className={[
+                        result === "perfect" || result === "good"
+                          ? "is-hit"
+                          : "",
+                        result === "wrong" || result === "miss"
+                          ? "is-miss"
+                          : "",
+                        cue.index === (state?.currentCue ?? 0)
+                          ? "is-current"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      key={cue.id}
+                    />
+                  );
+                })}
+              </span>
+            </div>
+          </div>
+          <div className="pulse-clock">
+            <span>{remaining.toString().padStart(2, "0")}</span>
+            <small>
+              {(state?.streak ?? 0) > 0
+                ? `${state?.streak ?? 0} combo · ${multiplier}×`
+                : `${hits}/${chart.cues.length} hits`}
+            </small>
+          </div>
+        </div>
+
+        <section
+          aria-label="Tap to stay on this channel. Flick left or right to switch channels."
+          className="pulse-tap-surface"
+          onKeyDown={handleSurfaceKeyDown}
+          onPointerCancel={handlePointerCancel}
+          onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
+          role="button"
+          tabIndex={0}
+        >
+          <BaseJamPulseBoard
             audioContext={audioContext}
             chart={chart}
             controllerRef={controllerRef}
-            focusMode={focusMode}
+            feedback={feedback}
             onComplete={handleComplete}
             onFeedback={handleFeedback}
             onMutedChange={handleMuted}
             onReady={handleReady}
             onStateChange={handleState}
           />
-          <p className="rhythm-notice" aria-live="polite">
-            {notice}
-          </p>
         </section>
 
-        <div className="rhythm-control-dock" aria-label="Rhythm controls">
-          {!focusMode ? (
-            <button
-              aria-label="Previous instrument rail"
-              onClick={() => controllerRef.current?.moveLane(-1)}
-              type="button"
-            >
-              <b>←</b>
-              <small>A</small>
-            </button>
-          ) : null}
-          {(["J", "K", "L"] as const).map((key, column) => {
-            const focusNames = ["HIGH", "MID", "LOW"] as const;
-            const focusSymbols = ["↑", "●", "↓"] as const;
-            return (
-              <button
-                aria-label={
-                  focusMode
-                    ? `Hit ${focusNames[column].toLowerCase()} note`
-                    : `${key} hit ${column + 1}`
-                }
-                className="rhythm-hit-button"
-                key={key}
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  hit(column as RhythmColumn);
-                }}
-                type="button"
-              >
-                <b>{focusMode ? focusSymbols[column] : key}</b>
-                <small>
-                  {focusMode ? focusNames[column] : `HIT ${column + 1}`}
-                </small>
-              </button>
-            );
-          })}
-          {!focusMode ? (
-            <button
-              aria-label="Next instrument rail"
-              onClick={() => controllerRef.current?.moveLane(1)}
-              type="button"
-            >
-              <b>→</b>
-              <small>D</small>
-            </button>
-          ) : null}
-        </div>
-
-        <aside className="rhythm-lane-panel">
-          <p className="eyebrow">
-            {focusMode ? "Auto-focus rotation" : "Instrument rails"}
+        <footer className="pulse-game-footer">
+          <p aria-live="polite" className="pulse-notice">
+            {notice}
           </p>
-          <div className="rhythm-lane-buttons">
-            {RHYTHM_LANES.map((lane, index) => {
-              const selected = (state?.selectedLane ?? 0) === lane.id;
-              const active =
-                (state?.capturedUntilBar[lane.id] ?? 0) > currentBar;
-              return (
-                <button
-                  aria-pressed={selected}
-                  className={`${selected ? "is-selected" : ""} ${active ? "is-active" : ""}`}
-                  disabled={focusMode}
-                  key={lane.id}
-                  onClick={() => controllerRef.current?.selectLane(lane.id)}
-                  style={{ "--lane-color": lane.color } as CSSProperties}
-                  type="button"
-                >
-                  <small>0{index + 1}</small>
-                  <strong>{lane.name}</strong>
-                  <span>
-                    {active
-                      ? "LIVE"
-                      : selected
-                        ? focusMode
-                          ? "NOW"
-                          : "ARMED"
-                        : "OFF"}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
           <button
-            className="rhythm-mute"
+            className="pulse-mute"
             onClick={() => controllerRef.current?.toggleMuted()}
             type="button"
           >
-            {muted ? "Sound off · unmute" : "Sound on · mute"}
+            {muted ? "Sound off" : "Sound on"}
             <kbd>M</kbd>
           </button>
-        </aside>
+        </footer>
       </section>
     </main>
   );
@@ -615,29 +833,30 @@ function ResultReceipt({
   chart,
   state,
 }: {
-  chart: RhythmChart;
-  state: RhythmState;
+  chart: PulseChart;
+  state: PulseState;
 }) {
-  const result = rhythmResult(state);
-  const receiptNotes = chart.notes.filter((_, index) => index % 3 === 0);
+  const result = pulseResult(state);
 
   return (
-    <div className="mix-receipt" aria-label="Your Base mix receipt">
+    <div className="mix-receipt pulse-receipt" aria-label="Your Base pulse receipt">
       <div className="mix-receipt__top">
         <span>BASE JAM</span>
-        <small>LIVE MIX / 8453</small>
+        <small>BLOCK PULSE / 8453</small>
       </div>
       <div className="mix-receipt__wave" aria-hidden>
-        {receiptNotes.map((note) => {
-          const judged = state.noteResults[note.id];
+        {chart.cues.map((cue) => {
+          const event = chart.events[cue.eventIndex];
+          const judged = state.cueResults[cue.id];
           return (
             <i
               className={judged === "perfect" || judged === "good" ? "is-hit" : ""}
-              key={note.id}
+              key={cue.id}
               style={
                 {
-                  "--bar-height": `${20 + Math.round(note.velocity * 80)}%`,
-                  "--bar-color": RHYTHM_LANES[note.lane].color,
+                  "--bar-height": `${28 + Math.round(cue.energy * 72)}%`,
+                  "--bar-color":
+                    PULSE_LAYERS[event?.signalLayer ?? 0].color,
                 } as CSSProperties
               }
             />
@@ -645,19 +864,21 @@ function ResultReceipt({
         })}
       </div>
       <div className="mix-receipt__blocks">
-        {chart.bars.map((bar, index) => (
-          <span key={`${bar.blockHash}-${index}`}>
-            {index % 3 === 0 ? numberLabel(bar.blockNumber) : "•"}
+        {chart.events.map((event, index) => (
+          <span key={event.id}>
+            {index % 2 === 0 ? numberLabel(event.blockNumber) : "•"}
           </span>
         ))}
       </div>
       <div className="mix-receipt__bottom">
         <strong>{result.accuracy}%</strong>
         <div>
-          <span>{chart.bars.length} CONFIRMED BARS</span>
-          <small>{state.captures} stem captures</small>
+          <span>{result.vibe}</span>
+          <small>
+            {state.perfect + state.good} of {chart.cues.length} commands hit
+          </small>
         </div>
-        <b>{result.grade}</b>
+        <b>{state.maxStreak}×</b>
       </div>
     </div>
   );
@@ -668,17 +889,18 @@ function ResultView({
   onRetry,
   state,
 }: {
-  chart: RhythmChart;
+  chart: PulseChart;
   onRetry: () => void;
-  state: RhythmState;
+  state: PulseState;
 }) {
   const [shareState, setShareState] = useState("Share the mix");
-  const result = rhythmResult(state);
+  const result = pulseResult(state);
+  const hits = state.perfect + state.good;
 
   async function share() {
-    const first = chart.bars[0]?.blockNumber;
-    const last = chart.bars.at(-1)?.blockNumber;
-    const text = `I scored ${state.score.toLocaleString()} on BASE JAM — ${result.accuracy}% timing across Base blocks ${first}–${last}.`;
+    const first = chart.events[0]?.blockNumber;
+    const last = chart.events.at(-1)?.blockNumber;
+    const text = `I hit ${hits}/${chart.cues.length} live Base commands on BASE JAM — ${result.vibe} with a ${state.maxStreak}× combo across blocks ${first}–${last}.`;
     const url = window.location.origin;
     try {
       if (navigator.share) {
@@ -697,38 +919,42 @@ function ResultView({
       <Header mode="result" />
       <section className="result-layout rhythm-result-layout">
         <div className="result-copy">
-          <p className="eyebrow">Set complete / 15 Base blocks</p>
-          <h1>{result.grade === "F" ? "FIND THE PULSE." : "MIX SEALED."}</h1>
+          <p className="eyebrow">
+            Pulse complete / {chart.events.length} Base blocks
+          </p>
+          <h1>{result.vibe}.</h1>
           <p>
-            You brought {state.captures} stems into the session and held a
-            {` ${state.maxCombo}×`} max combo. The chain supplied the chart;
-            your timing made the mix.
+            You hit {hits} live commands and cleared {state.sealed} of{" "}
+            {chart.events.length} block phrases. The Base data supplied the
+            chart; your timing built the mix. You landed {state.perfect} perfect
+            and {state.good} good hits, with {state.wrong + state.misses} clean
+            recoveries.
           </p>
           <div className="result-stats rhythm-result-stats">
             <div>
-              <span>Grade</span>
-              <strong>{result.grade}</strong>
+              <span>Commands hit</span>
+              <strong>{hits}/{chart.cues.length}</strong>
             </div>
             <div>
-              <span>Accuracy</span>
-              <strong>{result.accuracy}%</strong>
+              <span>Perfect</span>
+              <strong>{state.perfect}</strong>
             </div>
             <div>
               <span>Score</span>
               <strong>{state.score.toLocaleString()}</strong>
             </div>
             <div>
-              <span>Max combo</span>
-              <strong>{state.maxCombo}×</strong>
+              <span>Best chain</span>
+              <strong>{state.maxStreak}× chain</strong>
             </div>
           </div>
           <div className="result-actions">
-            <button className="button button--primary" onClick={share} type="button">
-              {shareState}
-              <b aria-hidden>↗</b>
-            </button>
-            <button className="button button--ink" onClick={onRetry} type="button">
+            <button className="button button--primary" onClick={onRetry} type="button">
               Run it back
+              <b aria-hidden>↻</b>
+            </button>
+            <button className="button button--ink" onClick={share} type="button">
+              {shareState}
             </button>
           </div>
           <p className="verification-state">
@@ -775,10 +1001,9 @@ function ErrorView({
 export function BaseJamApp() {
   const [phase, setPhase] = useState<Phase>("home");
   const [level, setLevel] = useState<LevelManifestV1 | null>(null);
-  const [chart, setChart] = useState<RhythmChart | null>(null);
+  const [chart, setChart] = useState<PulseChart | null>(null);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
-  const [focusMode, setFocusMode] = useState(false);
-  const [finishedState, setFinishedState] = useState<RhythmState | null>(null);
+  const [finishedState, setFinishedState] = useState<PulseState | null>(null);
   const [fatalError, setFatalError] = useState("Base did not answer in time.");
   const [requestedBlock, setRequestedBlock] = useState<string | null>(null);
 
@@ -807,10 +1032,7 @@ export function BaseJamApp() {
       forcePractice = false,
     ) => {
       const armedAudio =
-        forcedAudio === undefined ? armRhythmAudio() : forcedAudio;
-      setFocusMode(
-        window.matchMedia("(max-width: 760px), (pointer: coarse)").matches,
-      );
+        forcedAudio === undefined ? armPulseAudio() : forcedAudio;
       setAudioContext(armedAudio);
       setPhase("loading");
       setFinishedState(null);
@@ -835,7 +1057,7 @@ export function BaseJamApp() {
         }
         const selected = levels.at(-1) ?? levels[0];
         setLevel(selected);
-        setChart(createRhythmChart(levels));
+        setChart(createPulseChart(levels));
         setPhase("playing");
       } catch (error) {
         setFatalError(
@@ -848,7 +1070,7 @@ export function BaseJamApp() {
   );
 
   const startPractice = useCallback(() => {
-    const armedAudio = armRhythmAudio();
+    const armedAudio = armPulseAudio();
     void loadPracticeLevel(requestedBlock)
       .then(({ level: practice }) => start(practice, armedAudio, true))
       .catch((error: unknown) => {
@@ -861,18 +1083,23 @@ export function BaseJamApp() {
       });
   }, [requestedBlock, start]);
 
-  const complete = useCallback((state: RhythmState) => {
+  const complete = useCallback((state: PulseState) => {
     setFinishedState(state);
     setPhase("result");
     try {
-      const best = Number(localStorage.getItem("base-jam-rhythm-best") ?? "0");
+      const best = Number(localStorage.getItem("base-jam-pulse-best") ?? "0");
       if (state.score > best) {
-        localStorage.setItem("base-jam-rhythm-best", String(state.score));
+        localStorage.setItem("base-jam-pulse-best", String(state.score));
       }
     } catch {
       // Local storage is an enhancement; finishing the set never depends on it.
     }
   }, []);
+  const retryChart = useCallback(() => {
+    setFinishedState(null);
+    setPhase("playing");
+    void audioContext?.resume();
+  }, [audioContext]);
 
   if (phase === "loading") return <LoadingView />;
   if (phase === "playing" && chart) {
@@ -880,7 +1107,6 @@ export function BaseJamApp() {
       <GameView
         audioContext={audioContext}
         chart={chart}
-        focusMode={focusMode}
         onComplete={complete}
       />
     );
@@ -889,7 +1115,7 @@ export function BaseJamApp() {
     return (
       <ResultView
         chart={chart}
-        onRetry={() => void start()}
+        onRetry={retryChart}
         state={finishedState}
       />
     );

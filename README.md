@@ -2,35 +2,40 @@
 
 Play the chain.
 
-BASE JAM is a wallet-optional browser rhythm game. It turns 15 confirmed Base
-blocks into a deterministic 30-second chart: one two-second block per musical
-bar, four instrument rails, and three hit columns.
+BASE JAM is a wallet-optional, one-thumb browser rhythm game. It turns 10
+confirmed Base blocks into a deterministic 20-second run through an octagonal
+signal tunnel: tap, flick left, or flick right as each command reaches the
+capture line.
 
 ## Gameplay
 
-- Switch among DRUMS, BASS, SYNTH, and FX with A/D or the lane buttons.
-- Hit each rail’s three-note phrase with J/K/L.
-- On phones, one-thumb focus mode changes instruments automatically and
-  replaces the desktop controls with three large HIGH/MID/LOW pads.
-- Completing a phrase captures that instrument stem for four bars.
-- Chain together captures, timing streaks, and a full procedural mix.
-- Leave with a block-by-block performance receipt.
+- Ten Base blocks expand into 31 deterministic commands: two cues in the first
+  phrases, three through the middle, and four in the finale.
+- Tap/Space stays on the current face; horizontal flicks or Arrow/A/D rotate
+  left and right across the eight-face tunnel.
+- The successful tutorial sequence is `TAP → TAP → LEFT → RIGHT`. A missed
+  lesson repeats on the next cue instead of advancing silently.
+- Correct direction and timing build a combo and x1–x4 multiplier. A wrong
+  direction or missed cue resets combo, never the run.
+- Hitting at least 75% of a block phrase activates its beat, bass, synth, or FX
+  layer through the following two blocks. A failed phrase fades that channel.
+- The result scores every cue, and **Run it back** replays the identical chart.
 
-Transaction hash, calldata size, gas, value, and fee data determine note
-placement and velocity. Everyone playing the same block sequence gets the same
-chart. The current rhythm vertical slice scores locally and labels that fact
-honestly; the previous packing replay APIs remain in the repository but are not
-used to claim that rhythm scores are server-verified.
+Transaction hash, calldata size, gas, transaction count, and fee data determine
+the phrase pattern, energy, accents, timbre, color, and motion within bounded
+musical ranges. Everyone playing the same block sequence gets the same chart.
+Scores remain local and are labelled honestly.
 
 ## Architecture
 
 ```text
 Base RPC (server only)
-  → 15 immutable LevelManifestV1 blocks
-  → deterministic rhythm chart
-  → pure timing / scoring state machine
-  → Phaser rail renderer + Web Audio sequencer
-  → React HUD, touch controls, and mix receipt
+  → 10 immutable LevelManifestV1 blocks
+  → 10-phrase / 31-cue deterministic pulse chart
+  → pure direction, timing, combo, and phrase state machine
+  → Phaser simulation bridge + Web Audio sequencer
+  → React Three Fiber single-target octagonal tunnel renderer
+  → React HUD, one-thumb gesture surface, and per-cue receipt
 ```
 
 If Base data is unavailable, the app can build an explicitly unranked,
@@ -60,9 +65,10 @@ pnpm build
 pnpm test:e2e
 ```
 
-The rhythm chart and scoring state machine have deterministic unit coverage.
-Browser playtests cover desktop and mobile layouts, keyboard/touch controls,
-full-run completion, result receipts, overflow, and console errors.
+The pulse chart and scoring state machine have deterministic unit coverage.
+Browser playtests cover desktop and mobile layouts, successful tutorial
+progression, wrong-route recovery, touch drift, temporary-channel HUD state,
+keyboard/touch input, practice fallback, overflow, and 3D asset failure.
 
 ## License
 
