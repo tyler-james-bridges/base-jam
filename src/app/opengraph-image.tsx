@@ -70,7 +70,7 @@ export default function OpenGraphImage() {
             </div>
           </div>
           <div style={{ display: "flex", fontSize: 20 }}>
-            Real Base transactions. One shared live rhythm chart.
+            Tap the block. Build the mix. One rule, live Base data.
           </div>
         </div>
         <div
