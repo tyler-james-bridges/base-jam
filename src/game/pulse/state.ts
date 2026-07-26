@@ -8,6 +8,7 @@ import {
   type PulseLayer,
   type PulseResult,
   type PulseRoute,
+  type PulseRouteResolution,
   type PulseState,
   type PulseTutorialStep,
 } from "./types";
@@ -205,16 +206,34 @@ function withCueResult(
   return finalizePhraseIfComplete(chart, next, cue.eventIndex);
 }
 
-export function judgePulseRoute(
+export function resolvePulseRoute(
   chart: PulseChart,
   state: PulseState,
   songTime: number,
   route: PulseRoute,
-): PulseState {
-  if (state.finished) return state;
+): PulseRouteResolution {
+  const previousFace = state.activeFace;
+  if (state.finished) {
+    return {
+      state,
+      route,
+      previousFace,
+      activeFace: state.activeFace,
+      songTimeSeconds: songTime,
+      cueId: null,
+      cueIndex: null,
+      expectedRoute: null,
+      outcome: "ignored",
+      deltaMs: null,
+      routedLayer: null,
+      phraseResult: null,
+    };
+  }
+
   const activeFace = pulseFaceAfterRoute(state.activeFace, route);
   const openCue = chart.cues.find((cue) => !state.cueResults[cue.id]);
   const openDelta = openCue ? songTime - openCue.time : 0;
+  const expectedRoute = openCue ? pulseExpectedRoute(openCue, state) : null;
   // Only the one command visibly presented to the player can resolve. Guided
   // windows overlap by design; choosing the mathematically nearest later cue
   // would make a correct-looking input skip the target still on screen.
@@ -226,7 +245,7 @@ export function judgePulseRoute(
       : undefined;
 
   if (!candidate) {
-    return {
+    const nextState = {
       ...state,
       activeFace,
       lastRoute: route,
@@ -234,11 +253,25 @@ export function judgePulseRoute(
       lastJudgement: null,
       lastDeltaMs: null,
     };
+    return {
+      state: nextState,
+      route,
+      previousFace,
+      activeFace,
+      songTimeSeconds: songTime,
+      cueId: openCue?.id ?? null,
+      cueIndex: openCue?.index ?? null,
+      expectedRoute,
+      outcome: !openCue ? "ignored" : openDelta < 0 ? "early" : "late",
+      deltaMs: openCue ? Math.round(openDelta * 1_000) : null,
+      routedLayer: null,
+      phraseResult: null,
+    };
   }
 
-  const expectedRoute = pulseExpectedRoute(candidate.cue, state);
-  if (route !== expectedRoute) {
-    return withCueResult(
+  const candidateExpectedRoute = pulseExpectedRoute(candidate.cue, state);
+  if (route !== candidateExpectedRoute) {
+    const nextState = withCueResult(
       chart,
       {
         ...state,
@@ -253,6 +286,21 @@ export function judgePulseRoute(
       candidate.cue,
       "wrong",
     );
+    const event = chart.events[candidate.cue.eventIndex];
+    return {
+      state: nextState,
+      route,
+      previousFace,
+      activeFace,
+      songTimeSeconds: songTime,
+      cueId: candidate.cue.id,
+      cueIndex: candidate.cue.index,
+      expectedRoute: candidateExpectedRoute,
+      outcome: "wrong",
+      deltaMs: Math.round(candidate.delta * 1_000),
+      routedLayer: null,
+      phraseResult: event ? (nextState.eventResults[event.id] ?? null) : null,
+    };
   }
 
   const judgement: Extract<PulseCueJudgement, "perfect" | "good"> =
@@ -270,7 +318,7 @@ export function judgePulseRoute(
     state.tutorialStep + 1,
   ) as PulseTutorialStep;
 
-  return withCueResult(
+  const nextState = withCueResult(
     chart,
     {
       ...state,
@@ -293,6 +341,30 @@ export function judgePulseRoute(
     candidate.cue,
     judgement,
   );
+  const event = chart.events[candidate.cue.eventIndex];
+  return {
+    state: nextState,
+    route,
+    previousFace,
+    activeFace,
+    songTimeSeconds: songTime,
+    cueId: candidate.cue.id,
+    cueIndex: candidate.cue.index,
+    expectedRoute: candidateExpectedRoute,
+    outcome: judgement,
+    deltaMs: Math.round(candidate.delta * 1_000),
+    routedLayer,
+    phraseResult: event ? (nextState.eventResults[event.id] ?? null) : null,
+  };
+}
+
+export function judgePulseRoute(
+  chart: PulseChart,
+  state: PulseState,
+  songTime: number,
+  route: PulseRoute,
+): PulseState {
+  return resolvePulseRoute(chart, state, songTime, route).state;
 }
 
 export function judgePulseTap(

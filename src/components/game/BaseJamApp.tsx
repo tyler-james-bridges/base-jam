@@ -414,7 +414,10 @@ function GameView({
   const pendingInputsRef = useRef<PendingPulseInput[]>([]);
   const pointerGestureRef = useRef<PointerGesture | null>(null);
   const runtimeReadyRef = useRef(false);
+  const sceneReadyRef = useRef(false);
   const autoStartedRef = useRef(false);
+  const startAttemptFrameRef = useRef<number | null>(null);
+  const pendingFlushFrameRef = useRef<number | null>(null);
   const lastInputAtRef = useRef(-Infinity);
   const feedbackTimerRef = useRef<number | null>(null);
   const [state, setState] = useState<PulseState | null>(null);
@@ -437,6 +440,9 @@ function GameView({
       pendingInputsRef.current.push(input);
       return;
     }
+    // The controller is deliberately constructed before WebGL is ready. Do not
+    // let a tap on the still-loading surface bypass the first-render gate.
+    if (!autoStartedRef.current) return;
     if (input.kind === "tap") {
       controller.tap();
       return;
@@ -480,31 +486,61 @@ function GameView({
     [triggerInput],
   );
 
-  const handleReady = useCallback(() => {
-    runtimeReadyRef.current = true;
-    setNotice("Follow the command line");
-    const pendingInputs = pendingInputsRef.current.splice(0);
-    requestAnimationFrame(() => {
-      if (!autoStartedRef.current) {
-        autoStartedRef.current = true;
-        controllerRef.current?.tap();
+  const scheduleStartAttempt = useCallback(() => {
+    if (startAttemptFrameRef.current !== null) return;
+    startAttemptFrameRef.current = requestAnimationFrame(() => {
+      startAttemptFrameRef.current = null;
+      const controller = controllerRef.current;
+      if (
+        !controller ||
+        !runtimeReadyRef.current ||
+        !sceneReadyRef.current ||
+        autoStartedRef.current
+      ) {
+        return;
       }
-      if (pendingInputs.length > 0) {
-        requestAnimationFrame(() => {
+
+      autoStartedRef.current = true;
+      controller.tap();
+      const pendingInputs = pendingInputsRef.current.splice(0);
+      if (pendingInputs.length === 0) return;
+
+      pendingFlushFrameRef.current = requestAnimationFrame(() => {
+        pendingFlushFrameRef.current = null;
+        if (controllerRef.current !== controller) return;
         pendingInputs.forEach((input) => {
           if (input.kind === "tap") {
-            controllerRef.current?.tap();
+            controller.tap();
           } else {
-            controllerRef.current?.route(
-              input.direction,
-              input.pointerStartedAt,
-            );
+            controller.route(input.direction, input.pointerStartedAt);
           }
         });
-        });
-      }
+      });
     });
   }, []);
+
+  const handleReady = useCallback(() => {
+    runtimeReadyRef.current = true;
+    setNotice(
+      sceneReadyRef.current
+        ? "Follow the command line"
+        : "Preparing the signal tunnel",
+    );
+    scheduleStartAttempt();
+  }, [scheduleStartAttempt]);
+
+  const handleSceneReady = useCallback(
+    (mode: "rendered" | "fallback" | "timeout") => {
+      sceneReadyRef.current = true;
+      setNotice(
+        mode === "rendered"
+          ? "Follow the command line"
+          : "Graphics fallback · follow the command line",
+      );
+      scheduleStartAttempt();
+    },
+    [scheduleStartAttempt],
+  );
 
   const handleSurfaceKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLElement>) => {
@@ -651,6 +687,14 @@ function GameView({
       if (feedbackTimerRef.current !== null) {
         window.clearTimeout(feedbackTimerRef.current);
       }
+      if (startAttemptFrameRef.current !== null) {
+        window.cancelAnimationFrame(startAttemptFrameRef.current);
+        startAttemptFrameRef.current = null;
+      }
+      if (pendingFlushFrameRef.current !== null) {
+        window.cancelAnimationFrame(pendingFlushFrameRef.current);
+        pendingFlushFrameRef.current = null;
+      }
     },
     [],
   );
@@ -674,6 +718,10 @@ function GameView({
   );
   const hits = (state?.perfect ?? 0) + (state?.good ?? 0);
   const multiplier = pulseComboMultiplier(state?.streak ?? 0);
+  const scoreReadout =
+    (state?.streak ?? 0) > 0
+      ? `${state?.streak ?? 0} combo · ${multiplier}×`
+      : `${hits}/${chart.cues.length} hits`;
 
   return (
     <main className="game-shell pulse-game-shell">
@@ -689,9 +737,11 @@ function GameView({
         data-hits={hits}
         data-last-gesture={lastGesture}
         data-misses={state?.misses ?? 0}
+        data-muted={muted}
         data-play-mode="tap-flick"
         data-sealed={sealed}
         data-tutorial-step={tutorialStep}
+        data-visual-version="amplitude"
         data-wrong={state?.wrong ?? 0}
       >
         <div className="pulse-game-hud">
@@ -701,13 +751,16 @@ function GameView({
               {chart.ranked ? "Live Base" : "Practice"}
             </span>
             <h1 className="pulse-live-chip__desktop">
-              BASE #{numberLabel(event.blockNumber)}
+              {chart.ranked
+                ? `BASE #${numberLabel(event.blockNumber)}`
+                : "PRACTICE SIGNAL"}
             </h1>
             <h1
               className="pulse-live-chip__mobile"
               title={`Base block ${numberLabel(event.blockNumber)}`}
             >
-              BLOCK {Math.min(currentEvent + 1, chart.events.length)} /{" "}
+              {chart.ranked ? "BLOCK" : "PRACTICE"}{" "}
+              {Math.min(currentEvent + 1, chart.events.length)}/
               {chart.events.length}
             </h1>
             <div
@@ -733,6 +786,7 @@ function GameView({
                       .join(" ")}
                     data-captures={captures}
                     data-live={isLive}
+                    data-stem={layer.name.toLowerCase()}
                     key={layer.id}
                     style={{ "--layer-color": layer.color } as CSSProperties}
                   >
@@ -750,7 +804,7 @@ function GameView({
               className="pulse-phrase-status"
             >
               <strong>
-                PHRASE {Math.min(currentEvent + 1, chart.events.length)} /{" "}
+                PHRASE {Math.min(currentEvent + 1, chart.events.length)}/
                 {chart.events.length}
               </strong>
               <span>
@@ -778,13 +832,13 @@ function GameView({
               </span>
             </div>
           </div>
-          <div className="pulse-clock">
+          <div
+            aria-label={`${remaining} seconds remaining; ${scoreReadout}`}
+            className="pulse-clock"
+            role="timer"
+          >
             <span>{remaining.toString().padStart(2, "0")}</span>
-            <small>
-              {(state?.streak ?? 0) > 0
-                ? `${state?.streak ?? 0} combo · ${multiplier}×`
-                : `${hits}/${chart.cues.length} hits`}
-            </small>
+            <small>{scoreReadout}</small>
           </div>
         </div>
 
@@ -807,6 +861,7 @@ function GameView({
             onFeedback={handleFeedback}
             onMutedChange={handleMuted}
             onReady={handleReady}
+            onSceneReady={handleSceneReady}
             onStateChange={handleState}
           />
         </section>
@@ -816,11 +871,17 @@ function GameView({
             {notice}
           </p>
           <button
+            aria-label={muted ? "Sound off" : "Sound on"}
+            aria-pressed={!muted}
             className="pulse-mute"
+            data-muted={muted}
             onClick={() => controllerRef.current?.toggleMuted()}
+            title={muted ? "Turn sound on (M)" : "Mute sound (M)"}
             type="button"
           >
-            {muted ? "Sound off" : "Sound on"}
+            <span aria-hidden className="pulse-mute__icon">
+              ♪
+            </span>
             <kbd>M</kbd>
           </button>
         </footer>

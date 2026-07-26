@@ -14,6 +14,7 @@ import {
   pulseHitWindowForCue,
   pulseLayerForFace,
   PULSE_SYNC_BONUS_POINTS,
+  resolvePulseRoute,
 } from "./state";
 import type { PulseCue, PulseRoute, PulseState } from "./types";
 
@@ -174,6 +175,50 @@ describe("pulse state", () => {
     expect(state.lastRoutedLayer).toBeNull();
     expect(state.cueResults).toEqual({});
     expect(state.score).toBe(0);
+  });
+
+  it("returns a renderer-ready transition for an immediate route switch", () => {
+    const cue = chart.cues[0];
+    const initial = {
+      ...createPulseState(),
+      activeFace: 4 as const,
+      tutorialStep: 4 as const,
+    };
+    const resolution = resolvePulseRoute(
+      chart,
+      initial,
+      cue.time + 0.02,
+      cue.route,
+    );
+
+    expect(resolution.previousFace).toBe(4);
+    expect(resolution.activeFace).toBe(
+      pulseFaceAfterRoute(4, cue.route),
+    );
+    expect(resolution.state.activeFace).toBe(resolution.activeFace);
+    expect(resolution.cueId).toBe(cue.id);
+    expect(resolution.cueIndex).toBe(cue.index);
+    expect(resolution.expectedRoute).toBe(cue.route);
+    expect(resolution.outcome).toBe("perfect");
+    expect(resolution.deltaMs).toBe(20);
+    expect(resolution.routedLayer).toBe(
+      pulseLayerForFace(resolution.activeFace),
+    );
+  });
+
+  it("describes early input without consuming the upcoming cue", () => {
+    const resolution = resolvePulseRoute(
+      chart,
+      createPulseState(),
+      0,
+      1,
+    );
+
+    expect(resolution.outcome).toBe("early");
+    expect(resolution.cueId).toBe(chart.cues[0].id);
+    expect(resolution.activeFace).toBe(1);
+    expect(resolution.state.cueResults).toEqual({});
+    expect(resolution.deltaMs).toBeLessThan(0);
   });
 
   it("applies a x1–x4 score multiplier as combo grows", () => {

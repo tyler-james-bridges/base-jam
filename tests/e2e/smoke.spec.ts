@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const blockHash =
   "0x8f31a843fc6cd24af9e31f153b712bf3a4b95800997d580cc5f21f1c889ca07f";
@@ -72,55 +72,110 @@ async function mockPlayableApi(page: Page) {
   });
 }
 
-async function dispatchTouchGesture(
-  surface: Locator,
+async function dispatchWhenCueReady(
+  page: Page,
   {
-    deltaX = 0,
-    deltaY = 0,
-    holdMs = 0,
-    pointerId = 1,
+    fallbackDeltaY = 0,
+    mode = "expected",
+    pointerId,
   }: {
-    deltaX?: number;
-    deltaY?: number;
-    holdMs?: number;
-    pointerId?: number;
-  } = {},
+    fallbackDeltaY?: number;
+    mode?: "expected" | "wrong";
+    pointerId: number;
+  },
 ) {
-  const box = await surface.boundingBox();
-  expect(box).not.toBeNull();
-  const clientX = box!.x + box!.width / 2;
-  const clientY = box!.y + box!.height / 2;
-  await surface.dispatchEvent("pointerdown", {
-    button: 0,
-    buttons: 1,
-    clientX,
-    clientY,
-    isPrimary: true,
-    pointerId,
-    pointerType: "touch",
-  });
-  if (holdMs > 0) {
-    await new Promise((resolve) => setTimeout(resolve, holdMs));
-  }
-  await surface.dispatchEvent("pointerup", {
-    button: 0,
-    buttons: 0,
-    clientX: clientX + deltaX,
-    clientY: clientY + deltaY,
-    isPrimary: true,
-    pointerId,
-    pointerType: "touch",
-  });
-}
+  return page.evaluate(
+    async ({ fallbackDeltaY, mode, pointerId }) => {
+      const deadline = performance.now() + 6_000;
+      const waitForReadyFrame = () =>
+        new Promise<void>((resolve, reject) => {
+          const sample = () => {
+            const stage = document.querySelector<HTMLElement>(
+              ".base-jam-reactor-stage",
+            );
+            if (
+              stage?.dataset.cueReady === "true" &&
+              stage.dataset.cueRoute &&
+              stage.dataset.cueRoute !== "none"
+            ) {
+              resolve();
+              return;
+            }
+            if (performance.now() >= deadline) {
+              reject(new Error("Timed out waiting for an exact cue window."));
+              return;
+            }
+            requestAnimationFrame(sample);
+          };
+          requestAnimationFrame(sample);
+        });
 
-async function waitForCueReady(page: Page) {
-  await page.waitForFunction(
-    () =>
-      document
-        .querySelector(".base-jam-reactor-stage")
-        ?.getAttribute("data-cue-ready") === "true",
-    undefined,
-    { polling: 16, timeout: 6_000 },
+      await waitForReadyFrame();
+
+      const stage = document.querySelector<HTMLElement>(
+        ".base-jam-reactor-stage",
+      );
+      const game = document.querySelector<HTMLElement>(".pulse-game-layout");
+      const surface =
+        document.querySelector<HTMLElement>(".pulse-tap-surface");
+      if (!stage || !game || !surface) {
+        throw new Error("The active game surface was not mounted.");
+      }
+
+      const expectedRoute = stage.dataset.cueRoute;
+      const route =
+        mode === "wrong"
+          ? expectedRoute === "left"
+            ? "right"
+            : expectedRoute === "right"
+              ? "left"
+              : "right"
+          : expectedRoute;
+      const deltaX = route === "left" ? -80 : route === "right" ? 80 : 0;
+      const deltaY = route === "tap" ? fallbackDeltaY : 0;
+      const bounds = surface.getBoundingClientRect();
+      const clientX = bounds.left + bounds.width / 2;
+      const clientY = bounds.top + bounds.height / 2;
+      const shared = {
+        bubbles: true,
+        button: 0,
+        cancelable: true,
+        clientX,
+        clientY,
+        composed: true,
+        isPrimary: true,
+        pointerId,
+        pointerType: "touch",
+      };
+      const before = {
+        cue: Number(game.dataset.currentCue),
+        hits: Number(game.dataset.hits),
+        wrong: Number(game.dataset.wrong),
+      };
+
+      // Keep readiness sampling and both pointer events in the browser's own
+      // animation task. Crossing the Playwright transport here can consume
+      // most or all of a short rhythm-game hit window.
+      surface.dispatchEvent(
+        new PointerEvent("pointerdown", { ...shared, buttons: 1 }),
+      );
+      surface.dispatchEvent(
+        new PointerEvent("pointerup", {
+          ...shared,
+          buttons: 0,
+          clientX: clientX + deltaX,
+          clientY: clientY + deltaY,
+        }),
+      );
+
+      return {
+        ...before,
+        cueDeltaMs: Number(stage.dataset.cueDeltaMs),
+        expectedRoute,
+        route,
+      };
+    },
+    { fallbackDeltaY, mode, pointerId },
   );
 }
 
@@ -130,17 +185,9 @@ async function hitExpectedCue(
   fallbackGesture?: { deltaX?: number; deltaY?: number },
 ) {
   const game = page.locator(".pulse-game-layout");
-  const surface = page.locator(".pulse-tap-surface");
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const beforeCue = Number(await game.getAttribute("data-current-cue"));
-    const beforeHits = Number(await game.getAttribute("data-hits"));
-    await waitForCueReady(page);
-    const expected = await game.getAttribute("data-expected-route");
-    const gesture = fallbackGesture ?? {
-      deltaX: expected === "left" ? -80 : expected === "right" ? 80 : 0,
-    };
-    await dispatchTouchGesture(surface, {
-      ...gesture,
+    const before = await dispatchWhenCueReady(page, {
+      fallbackDeltaY: fallbackGesture?.deltaY,
       pointerId: pointerId + attempt * 100,
     });
     await page.waitForFunction(
@@ -151,23 +198,19 @@ async function hitExpectedCue(
           Number(element?.getAttribute("data-current-cue")) > cue
         );
       },
-      { cue: beforeCue, hits: beforeHits },
+      { cue: before.cue, hits: before.hits },
       { polling: 16, timeout: 2_000 },
     );
-    if (Number(await game.getAttribute("data-hits")) > beforeHits) return;
+    if (Number(await game.getAttribute("data-hits")) > before.hits) return;
   }
   throw new Error("Five readable cue windows passed without a hit.");
 }
 
 async function judgeWrongTutorialCue(page: Page, pointerId: number) {
   const game = page.locator(".pulse-game-layout");
-  const surface = page.locator(".pulse-tap-surface");
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const beforeCue = Number(await game.getAttribute("data-current-cue"));
-    const beforeWrong = Number(await game.getAttribute("data-wrong"));
-    await waitForCueReady(page);
-    await dispatchTouchGesture(surface, {
-      deltaX: 80,
+    const before = await dispatchWhenCueReady(page, {
+      mode: "wrong",
       pointerId: pointerId + attempt * 100,
     });
     await page.waitForFunction(
@@ -178,10 +221,10 @@ async function judgeWrongTutorialCue(page: Page, pointerId: number) {
           Number(element?.getAttribute("data-current-cue")) > cue
         );
       },
-      { cue: beforeCue, wrong: beforeWrong },
+      { cue: before.cue, wrong: before.wrong },
       { polling: 16, timeout: 2_000 },
     );
-    if (Number(await game.getAttribute("data-wrong")) > beforeWrong) return;
+    if (Number(await game.getAttribute("data-wrong")) > before.wrong) return;
   }
   throw new Error("Five readable LEFT cues passed without a wrong result.");
 }
@@ -227,12 +270,110 @@ test("one thumb can tap, flick, and read the channel HUD in both phone orientati
   await page.setViewportSize({ width: 390, height: 844 });
   await mockPlayableApi(page);
   await page.goto("/");
+  await page.evaluate(() => {
+    type GateSample = {
+      readonly at: number;
+      readonly phase: string | null;
+      readonly sceneReady: string | null;
+      readonly step: string | null;
+    };
+    const scope = window as Window & {
+      __pulseGateLifecycle?: GateSample[];
+    };
+    const samples: GateSample[] = [];
+    let previous = "";
+    const capture = () => {
+      const board = document.querySelector<HTMLElement>(
+        "[data-testid='base-jam-pulse']",
+      );
+      const game = document.querySelector<HTMLElement>(".pulse-game-layout");
+      if (!board || !game) return;
+      const sample = {
+        at: performance.now(),
+        phase: board.dataset.playbackPhase ?? null,
+        sceneReady: board.dataset.sceneReady ?? null,
+        step: game.dataset.currentStep ?? null,
+      };
+      const key = `${sample.phase}:${sample.sceneReady}:${sample.step}`;
+      if (key === previous) return;
+      previous = key;
+      samples.push(sample);
+    };
+    scope.__pulseGateLifecycle = samples;
+    new MutationObserver(capture).observe(document.documentElement, {
+      attributeFilter: [
+        "data-current-step",
+        "data-playback-phase",
+        "data-scene-ready",
+      ],
+      attributes: true,
+      childList: true,
+      subtree: true,
+    });
+  });
   await page.getByRole("button", { name: /Tap to start/ }).click();
 
-  await expect(page.getByTestId("base-jam-pulse")).toBeVisible();
+  const board = page.getByTestId("base-jam-pulse");
+  await expect(board).toBeVisible();
   await expect(
     page.locator(".base-jam-reactor-stage canvas"),
   ).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".pulse-game-layout")).toHaveAttribute(
+    "data-visual-version",
+    "amplitude",
+  );
+  await expect(page.locator(".base-jam-reactor-stage")).toHaveAttribute(
+    "data-camera-mode",
+    "first-person",
+  );
+  await expect(page.locator(".base-jam-reactor-stage canvas")).toHaveCount(1);
+  await expect(page.locator(".base-jam-phaser-runtime canvas")).toHaveCount(0);
+  const stage = page.locator(".base-jam-reactor-stage");
+  await expect(stage).toHaveAttribute("data-cue-ready-source", "runtime");
+  await page.waitForFunction(
+    () =>
+      Number(
+        document
+          .querySelector(".base-jam-reactor-stage")
+          ?.getAttribute("data-draw-calls"),
+      ) > 0,
+    undefined,
+    { polling: 50, timeout: 5_000 },
+  );
+  await expect(board).toHaveAttribute("data-scene-ready", "true");
+  await expect(board).toHaveAttribute("data-scene-ready-mode", "rendered");
+  await expect(board).toHaveAttribute("data-playback-phase", /preroll|playing/);
+  const gateLifecycle = await page.evaluate(
+    () =>
+      (
+        window as Window & {
+          __pulseGateLifecycle?: Array<{
+            readonly phase: string | null;
+            readonly sceneReady: string | null;
+            readonly step: string | null;
+          }>;
+        }
+      ).__pulseGateLifecycle ?? [],
+  );
+  const pendingGateIndex = gateLifecycle.findIndex(
+    (sample) =>
+      sample.sceneReady === "false" &&
+      sample.phase === "idle" &&
+      Number(sample.step) < 0,
+  );
+  const startedGateIndex = gateLifecycle.findIndex(
+    (sample) =>
+      sample.sceneReady === "true" &&
+      (sample.phase === "preroll" || sample.phase === "playing"),
+  );
+  expect(pendingGateIndex).toBeGreaterThanOrEqual(0);
+  expect(startedGateIndex).toBeGreaterThan(pendingGateIndex);
+  expect(Number(await stage.getAttribute("data-draw-calls"))).toBeLessThanOrEqual(
+    90,
+  );
+  expect(Number(await stage.getAttribute("data-triangles"))).toBeLessThanOrEqual(
+    120_000,
+  );
   const clock = page.locator(".pulse-clock span");
   await expect(clock).toHaveText(/^\d{2}$/);
   expect(Number(await clock.textContent())).toBeGreaterThan(0);
@@ -253,6 +394,9 @@ test("one thumb can tap, flick, and read the channel HUD in both phone orientati
   await expect(page.locator(".rhythm-lane-buttons")).toHaveCount(0);
   await expect(page.locator(".pulse-channel-statuses > span")).toHaveCount(4);
   await expect(page.locator(".pulse-channel-statuses")).toBeVisible();
+  await expect(
+    page.locator(".pulse-channel-statuses > span b"),
+  ).toHaveText(["BEAT", "BASS", "SYNTH", "FX"]);
   await expect(page.locator(".pulse-phrase-status i")).toHaveCount(2);
 
   const tapBox = await tapSurface.boundingBox();

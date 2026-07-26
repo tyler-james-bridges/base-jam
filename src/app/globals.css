@@ -6187,3 +6187,705 @@ kbd {
     font-size: 8px;
   }
 }
+
+/*
+ * Amplitude pass — a single high-contrast flight HUD.
+ * The data attribute deliberately scopes this above the earlier prototype
+ * generations so the playable surface has one predictable cascade.
+ */
+.pulse-game-layout[data-visual-version="amplitude"] {
+  --flight-ink: #02030b;
+  --flight-paper: #f6f7ff;
+  --flight-blue: #4c8dff;
+  --flight-cyan: #57e6ff;
+  --flight-acid: #c9ff3d;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 64%, rgba(34, 75, 170, 0.2), transparent 44%),
+    linear-gradient(180deg, #030514 0%, #02030b 100%);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]::after {
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(1, 2, 8, 0.46) 0%,
+      transparent 16%,
+      transparent 76%,
+      rgba(1, 2, 8, 0.42) 100%
+    ),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0,
+      transparent 3px,
+      rgba(147, 181, 255, 0.012) 4px
+    );
+  content: "";
+  pointer-events: none;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-game-hud {
+  z-index: 20;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(24px, env(safe-area-inset-right));
+  left: max(24px, env(safe-area-inset-left));
+  align-items: start;
+  gap: 24px;
+  grid-template-columns: minmax(150px, 1fr) minmax(190px, 290px) minmax(
+      150px,
+      1fr
+    );
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-live-chip {
+  position: relative;
+  gap: 7px;
+  padding: 10px 14px 11px 16px;
+  border: 1px solid rgba(116, 151, 220, 0.16);
+  background:
+    linear-gradient(
+      112deg,
+      rgba(14, 26, 58, 0.78),
+      rgba(4, 9, 28, 0.5) 68%,
+      rgba(3, 7, 22, 0.18)
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(246, 247, 255, 0.055),
+    0 16px 38px rgba(0, 0, 0, 0.2);
+  border-radius: 0 10px 0 0;
+  backdrop-filter: blur(12px);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-live-chip::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--flight-acid), var(--flight-cyan));
+  box-shadow: 0 0 14px rgba(87, 230, 255, 0.64);
+  content: "";
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-live-chip > span {
+  color: rgba(224, 234, 255, 0.78);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.13em;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-live-chip > span i {
+  width: 7px;
+  height: 7px;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-live-chip
+  > span
+  i.ranked {
+  background: var(--flight-acid);
+  box-shadow:
+    0 0 7px rgba(201, 255, 61, 0.9),
+    0 0 20px rgba(201, 255, 61, 0.48);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-live-chip h1 {
+  color: var(--flight-paper);
+  font-size: 15px;
+  font-weight: 820;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 18px rgba(76, 141, 255, 0.46);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-channel-statuses {
+  display: grid;
+  width: min(368px, 34vw);
+  margin-top: 10px;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(58px, 1fr));
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-channel-statuses
+  > span {
+  display: grid;
+  width: auto;
+  height: auto;
+  min-height: 31px;
+  align-content: center;
+  gap: 4px;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 2px;
+  padding: 5px 7px 6px;
+  border: 1px solid rgba(116, 151, 220, 0.12);
+  border-top: 2px solid
+    color-mix(in srgb, var(--layer-color) 52%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--layer-color) 10%, transparent),
+    rgba(3, 7, 22, 0.3)
+  );
+  opacity: 0.68;
+  overflow: hidden;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-channel-statuses
+  > span
+  > i {
+  width: 100%;
+  height: 2px;
+  background: color-mix(
+    in srgb,
+    var(--layer-color) 40%,
+    rgba(123, 153, 218, 0.24)
+  );
+  order: 2;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-channel-statuses
+  b {
+  display: block;
+  color: color-mix(in srgb, var(--layer-color) 76%, var(--flight-paper));
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  order: 1;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-channel-statuses
+  small {
+  display: none;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-channel-statuses
+  > span.is-live
+  > i,
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-channel-statuses
+  > span.is-active
+  > i {
+  background: var(--layer-color);
+  box-shadow:
+    0 0 7px color-mix(in srgb, var(--layer-color) 88%, transparent),
+    0 0 18px color-mix(in srgb, var(--layer-color) 48%, transparent);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-channel-statuses
+  > span.is-live {
+  opacity: 0.86;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-channel-statuses
+  > span.is-active {
+  border-color: var(--layer-color);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--layer-color) 22%, transparent),
+    rgba(4, 9, 27, 0.6)
+  );
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-center-hud {
+  width: 100%;
+  max-width: 290px;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-phrase-status {
+  min-height: 40px;
+  gap: 8px;
+  padding: 7px 16px 8px;
+  border: 1px solid rgba(132, 168, 236, 0.3);
+  background:
+    linear-gradient(90deg, rgba(76, 141, 255, 0.13), transparent 24% 76%, rgba(87, 230, 255, 0.1)),
+    rgba(2, 5, 18, 0.68);
+  box-shadow:
+    inset 0 1px 0 rgba(246, 247, 255, 0.08),
+    0 12px 36px rgba(0, 0, 0, 0.3);
+  clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 9px 100%, 0 50%);
+  backdrop-filter: blur(10px);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-phrase-status
+  strong {
+  color: rgba(235, 241, 255, 0.88);
+  font-size: 11px;
+  letter-spacing: 0.13em;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-phrase-status i {
+  width: min(31px, 6vw);
+  height: 3px;
+  background: rgba(112, 141, 202, 0.3);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-phrase-status
+  i.is-current {
+  background: var(--flight-paper);
+  box-shadow:
+    0 0 8px rgba(246, 247, 255, 0.82),
+    0 0 18px rgba(76, 141, 255, 0.62);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-phrase-status
+  i.is-hit {
+  background: var(--flight-acid);
+  box-shadow:
+    0 0 8px rgba(201, 255, 61, 0.82),
+    0 0 18px rgba(201, 255, 61, 0.42);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-clock {
+  position: relative;
+  min-width: 112px;
+  min-height: 68px;
+  align-content: center;
+  padding: 8px 13px 9px;
+  border: 1px solid rgba(116, 151, 220, 0.18);
+  border-right: 3px solid rgba(87, 230, 255, 0.62);
+  background:
+    linear-gradient(118deg, rgba(76, 141, 255, 0.13), transparent 52%),
+    rgba(3, 7, 22, 0.62);
+  box-shadow:
+    inset 0 1px 0 rgba(246, 247, 255, 0.06),
+    0 14px 34px rgba(0, 0, 0, 0.24);
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+  text-shadow:
+    0 2px 18px rgba(0, 0, 0, 0.8),
+    0 0 20px rgba(76, 141, 255, 0.24);
+  backdrop-filter: blur(12px);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-clock::before {
+  color: rgba(164, 194, 247, 0.8);
+  content: "SECONDS LEFT";
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-clock span {
+  color: var(--flight-paper);
+  font-size: clamp(30px, 3vw, 44px);
+  font-weight: 900;
+  letter-spacing: -0.07em;
+  line-height: 0.78;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-clock small {
+  color: rgba(222, 232, 255, 0.72);
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .blockstream-stage__vignette {
+  z-index: 4;
+  background:
+    radial-gradient(
+      ellipse at 50% 48%,
+      transparent 42%,
+      rgba(0, 2, 10, 0.24) 72%,
+      rgba(0, 1, 7, 0.64) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(2, 4, 14, 0.38) 0%,
+      transparent 15% 76%,
+      rgba(2, 4, 14, 0.38) 100%
+    );
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .blockstream-stage__target {
+  z-index: 18;
+  top: 68%;
+  bottom: auto;
+  gap: 6px;
+  min-width: min(300px, calc(100vw - 48px));
+  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.58));
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .blockstream-stage__target
+  strong {
+  color: var(--flight-paper);
+  font-size: clamp(27px, 3.5vw, 46px);
+  font-weight: 930;
+  letter-spacing: -0.035em;
+  line-height: 0.84;
+  text-shadow:
+    0 0 10px rgba(246, 247, 255, 0.4),
+    0 0 26px rgba(76, 141, 255, 0.64);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .blockstream-stage__target
+  span {
+  color: rgba(230, 237, 255, 0.78);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.13em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.92);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .blockstream-stage__target.is-ready
+  strong,
+.pulse-game-layout[data-visual-version="amplitude"]
+  .blockstream-stage__target.is-judged:not(.is-correction)
+  strong {
+  color: var(--flight-acid);
+  text-shadow:
+    0 0 9px rgba(201, 255, 61, 0.76),
+    0 0 30px rgba(201, 255, 61, 0.62);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .blockstream-stage__target.is-correction
+  strong {
+  color: #ff735f;
+  text-shadow:
+    0 0 9px rgba(255, 115, 95, 0.72),
+    0 0 26px rgba(255, 91, 69, 0.48);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-game-footer {
+  z-index: 20;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-notice {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-mute {
+  position: relative;
+  display: grid;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-color: rgba(135, 169, 232, 0.38);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 42% 34%, rgba(76, 141, 255, 0.2), transparent 44%),
+    rgba(3, 7, 22, 0.76);
+  box-shadow:
+    inset 0 1px 0 rgba(246, 247, 255, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.32);
+  color: rgba(235, 241, 255, 0.86);
+  place-items: center;
+  touch-action: manipulation;
+  backdrop-filter: blur(12px);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-mute__icon {
+  font-family: var(--mono);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-mute[data-muted="true"]
+  .pulse-mute__icon {
+  opacity: 0.42;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"]
+  .pulse-mute[data-muted="true"]::after {
+  position: absolute;
+  width: 18px;
+  height: 1px;
+  background: #ff735f;
+  box-shadow: 0 0 7px rgba(255, 115, 95, 0.48);
+  content: "";
+  transform: rotate(-48deg);
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-mute kbd {
+  display: none;
+}
+
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-mute:hover,
+.pulse-game-layout[data-visual-version="amplitude"] .pulse-mute:focus-visible {
+  border-color: rgba(87, 230, 255, 0.52);
+  color: var(--flight-paper);
+  box-shadow:
+    inset 0 1px 0 rgba(246, 247, 255, 0.12),
+    0 0 0 3px rgba(87, 230, 255, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.32);
+}
+
+@media (max-width: 760px) {
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-game-hud {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(14px, env(safe-area-inset-right));
+    left: max(14px, env(safe-area-inset-left));
+    gap: 7px;
+    grid-template-columns: minmax(100px, 1fr) minmax(112px, 120px) minmax(
+        112px,
+        118px
+      );
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-live-chip {
+    gap: 5px;
+    padding: 8px 8px 9px 11px;
+    backdrop-filter: none;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .pulse-live-chip
+    > span {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-live-chip h1 {
+    font-size: 13px;
+    line-height: 1.05;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .pulse-channel-statuses {
+    position: fixed;
+    z-index: 22;
+    top: calc(env(safe-area-inset-top, 0px) + 86px);
+    left: max(14px, env(safe-area-inset-left));
+    box-sizing: border-box;
+    width: calc(
+      100vw - max(14px, env(safe-area-inset-left)) -
+        max(14px, env(safe-area-inset-right))
+    );
+    margin: 0;
+    padding: 7px 8px 8px;
+    gap: 6px;
+    border: 1px solid rgba(81, 139, 202, 0.28);
+    border-top: 2px solid rgba(87, 230, 255, 0.46);
+    border-radius: 0 0 8px 8px;
+    background:
+      linear-gradient(90deg, rgba(27, 72, 112, 0.22), transparent 30% 70%, rgba(55, 38, 102, 0.2)),
+      repeating-linear-gradient(90deg, rgba(87, 230, 255, 0.025) 0 1px, transparent 1px 24px),
+      #020714;
+    box-shadow:
+      inset 0 1px 0 rgba(174, 219, 255, 0.08),
+      0 10px 24px rgba(0, 0, 0, 0.72),
+      0 2px 0 rgba(3, 7, 20, 0.98);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    isolation: isolate;
+    overflow: hidden;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .pulse-channel-statuses
+    > span {
+    width: auto;
+    min-height: 38px;
+    gap: 4px;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 2px;
+    padding: 6px 7px;
+    overflow: hidden;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .pulse-channel-statuses
+    b {
+    font-size: 13px;
+    letter-spacing: 0.07em;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-center-hud {
+    max-width: 120px;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .pulse-phrase-status {
+    min-height: 42px;
+    gap: 5px;
+    padding: 7px 9px 8px;
+    clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 7px 100%, 0 50%);
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .pulse-phrase-status
+    strong {
+    font-size: 13px;
+    letter-spacing: 0.06em;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .pulse-phrase-status
+    i {
+    width: min(20px, 5vw);
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-clock {
+    min-width: 112px;
+    min-height: 64px;
+    padding: 6px 9px 7px;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-clock::before {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-clock span {
+    font-size: 32px;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-clock small {
+    max-width: 100%;
+    margin-top: 4px;
+    font-size: 13px;
+    letter-spacing: 0;
+    line-height: 1.05;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .blockstream-stage__target {
+    top: 61.5svh;
+    bottom: auto;
+    min-width: min(250px, calc(100vw - 28px));
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .blockstream-stage__target
+    strong {
+    font-size: clamp(30px, 8.7vw, 36px);
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .blockstream-stage__target
+    span {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 7px);
+    left: 0;
+    font-size: 12px;
+    letter-spacing: 0.065em;
+    line-height: 1.15;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-game-footer {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(9px, env(safe-area-inset-bottom));
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-mute {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 350px) {
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-game-hud {
+    right: max(10px, env(safe-area-inset-right));
+    left: max(10px, env(safe-area-inset-left));
+    gap: 5px;
+    grid-template-columns: minmax(82px, 1fr) minmax(92px, 104px) minmax(
+        88px,
+        98px
+      );
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-live-chip {
+    padding-inline: 9px 4px;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-live-chip h1,
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .pulse-phrase-status
+    strong {
+    font-size: 11px;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-center-hud {
+    max-width: 104px;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-clock {
+    min-width: 88px;
+    padding-inline: 6px;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-clock small {
+    font-size: 11px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  .pulse-game-layout[data-visual-version="amplitude"] .pulse-game-hud {
+    top: max(8px, env(safe-area-inset-top));
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .pulse-phrase-status {
+    min-height: 23px;
+    padding-block: 3px;
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .pulse-channel-statuses {
+    top: calc(env(safe-area-inset-top, 0px) + 48px);
+  }
+
+  .pulse-game-layout[data-visual-version="amplitude"]
+    .blockstream-stage__target {
+    top: auto;
+    bottom: 13%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-game-layout[data-visual-version="amplitude"]::after {
+    background: linear-gradient(
+      180deg,
+      rgba(1, 2, 8, 0.46),
+      transparent 16% 76%,
+      rgba(1, 2, 8, 0.42)
+    );
+  }
+}
