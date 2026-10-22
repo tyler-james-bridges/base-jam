@@ -183,25 +183,47 @@ async function hitExpectedCue(
   page: Page,
   pointerId: number,
   fallbackGesture?: { deltaX?: number; deltaY?: number },
-) {
-  const game = page.locator(".pulse-game-layout");
+  options?: { holdHud?: boolean },
+): Promise<number> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const before = await dispatchWhenCueReady(page, {
       fallbackDeltaY: fallbackGesture?.deltaY,
       pointerId: pointerId + attempt * 100,
     });
-    await page.waitForFunction(
-      ({ cue, hits }) => {
+    const observed = await page.waitForFunction(
+      ({ cue, hits, holdHud }) => {
         const element = document.querySelector(".pulse-game-layout");
-        return (
-          Number(element?.getAttribute("data-hits")) > hits ||
-          Number(element?.getAttribute("data-current-cue")) > cue
-        );
+        const nextHits = Number(element?.getAttribute("data-hits"));
+        if (nextHits > hits) {
+          if (holdHud) {
+            const visibility = Object.getOwnPropertyDescriptor(
+              Document.prototype,
+              "visibilityState",
+            );
+            if (visibility?.configurable !== false) {
+              Object.defineProperty(Document.prototype, "visibilityState", {
+                configurable: true,
+                get: () => "hidden",
+              });
+              Object.defineProperty(Document.prototype, "hidden", {
+                configurable: true,
+                get: () => true,
+              });
+            }
+            document.dispatchEvent(new Event("visibilitychange"));
+          }
+          return { combo: Number(element?.getAttribute("data-combo")), hit: true };
+        }
+        if (Number(element?.getAttribute("data-current-cue")) > cue) {
+          return { combo: 0, hit: false };
+        }
+        return null;
       },
-      { cue: before.cue, hits: before.hits },
+      { cue: before.cue, hits: before.hits, holdHud: options?.holdHud === true },
       { polling: 16, timeout: 2_000 },
     );
-    if (Number(await game.getAttribute("data-hits")) > before.hits) return;
+    const value = await observed.jsonValue();
+    if (value?.hit) return value.combo;
   }
   throw new Error("Five readable cue windows passed without a hit.");
 }
@@ -267,15 +289,20 @@ test("home makes the live Base rhythm game the focal point", async ({ page }) =>
 test("one thumb can tap, flick, and read the channel HUD in both phone orientations", async ({
   page,
 }) => {
+  // WebGL startup plus five live cue windows can outlast the 20s song and
+  // the default 30s test cap on a slow phone run.
+  test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await mockPlayableApi(page);
   await page.goto("/");
   await page.evaluate(() => {
     type GateSample = {
       readonly at: number;
+      readonly notice: string;
       readonly phase: string | null;
       readonly sceneReady: string | null;
       readonly step: string | null;
+      readonly target: string;
     };
     const scope = window as Window & {
       __pulseGateLifecycle?: GateSample[];
@@ -290,11 +317,16 @@ test("one thumb can tap, flick, and read the channel HUD in both phone orientati
       if (!board || !game) return;
       const sample = {
         at: performance.now(),
+        notice:
+          document.querySelector(".pulse-notice")?.textContent?.trim() ?? "",
         phase: board.dataset.playbackPhase ?? null,
         sceneReady: board.dataset.sceneReady ?? null,
         step: game.dataset.currentStep ?? null,
+        target:
+          document.querySelector(".blockstream-stage__target")?.textContent?.trim() ??
+          "",
       };
-      const key = `${sample.phase}:${sample.sceneReady}:${sample.step}`;
+      const key = `${sample.phase}:${sample.sceneReady}:${sample.step}:${sample.notice}:${sample.target}`;
       if (key === previous) return;
       previous = key;
       samples.push(sample);
@@ -307,6 +339,7 @@ test("one thumb can tap, flick, and read the channel HUD in both phone orientati
         "data-scene-ready",
       ],
       attributes: true,
+      characterData: true,
       childList: true,
       subtree: true,
     });
@@ -348,9 +381,11 @@ test("one thumb can tap, flick, and read the channel HUD in both phone orientati
       (
         window as Window & {
           __pulseGateLifecycle?: Array<{
+            readonly notice: string;
             readonly phase: string | null;
             readonly sceneReady: string | null;
             readonly step: string | null;
+            readonly target: string;
           }>;
         }
       ).__pulseGateLifecycle ?? [],
@@ -377,12 +412,48 @@ test("one thumb can tap, flick, and read the channel HUD in both phone orientati
   const clock = page.locator(".pulse-clock span");
   await expect(clock).toHaveText(/^\d{2}$/);
   expect(Number(await clock.textContent())).toBeGreaterThan(0);
-  const target = page.locator(".blockstream-stage__target");
-  await expect(target).toContainText("TAP");
-  await expect(target).toContainText("TOUCH ANYWHERE AT THE LINE");
-  await expect(page.locator(".pulse-notice")).toContainText(
-    /Signal armed|Follow the command line/,
-    { timeout: 2_000 },
+  // The opening prompt stays up only for the first cue window. Keep the
+  // samples taken since click, including after the live DOM has moved on.
+  await page.waitForFunction(
+    () => {
+      const samples =
+        (
+          window as Window & {
+            __pulseGateLifecycle?: Array<{ notice: string; target: string }>;
+          }
+        ).__pulseGateLifecycle ?? [];
+      return (
+        samples.some(
+          (sample) =>
+            sample.target.includes("TAP") &&
+            sample.target.includes("TOUCH ANYWHERE AT THE LINE"),
+        ) &&
+        samples.some((sample) =>
+          /Signal armed|Follow the command line/.test(sample.notice),
+        )
+      );
+    },
+    undefined,
+    { timeout: 5_000 },
+  );
+  const hudSamples = await page.evaluate(
+    () =>
+      (
+        window as Window & {
+          __pulseGateLifecycle?: Array<{ notice: string; target: string }>;
+        }
+      ).__pulseGateLifecycle ?? [],
+  );
+  expect(hudSamples.map((sample) => sample.target)).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("TAP"),
+      expect.stringContaining("TOUCH ANYWHERE AT THE LINE"),
+    ]),
+  );
+  expect(hudSamples.map((sample) => sample.notice)).toEqual(
+    expect.arrayContaining([
+      expect.stringMatching(/Signal armed|Follow the command line/),
+    ]),
   );
 
   const game = page.locator(".pulse-game-layout");
@@ -397,7 +468,14 @@ test("one thumb can tap, flick, and read the channel HUD in both phone orientati
   await expect(
     page.locator(".pulse-channel-statuses > span b"),
   ).toHaveText(["BEAT", "BASS", "SYNTH", "FX"]);
-  await expect(page.locator(".pulse-phrase-status i")).toHaveCount(2);
+  // Opening phrases have 2 cues; later phrases have 3 or 4. Slow runs
+  // reach a later phrase before this assertion, so any chart size is valid.
+  await expect
+    .poll(async () => {
+      const count = await page.locator(".pulse-phrase-status i").count();
+      return count === 2 || count === 3 || count === 4;
+    })
+    .toBe(true);
 
   const tapBox = await tapSurface.boundingBox();
   expect(tapBox).not.toBeNull();
@@ -428,8 +506,12 @@ test("one thumb can tap, flick, and read the channel HUD in both phone orientati
   await expect(game).toHaveAttribute("data-expected-route", "right");
 
   await page.waitForTimeout(110);
-  await hitExpectedCue(page, 14);
-  expect(Number(await game.getAttribute("data-combo"))).toBeGreaterThan(0);
+  // Stop the clock in the same browser turn as the last hit. The song is
+  // 20s, and the mute and orientation checks need the HUD to stay mounted.
+  expect(
+    await hitExpectedCue(page, 14, undefined, { holdHud: true }),
+  ).toBeGreaterThan(0);
+  await expect(board).toHaveAttribute("data-playback-phase", "paused");
   await expect(game).toHaveAttribute("data-tutorial-step", "4");
   await expect(game).toHaveAttribute("data-last-gesture", "flick-right");
   await expect(game).toHaveAttribute("data-hits", "4");
