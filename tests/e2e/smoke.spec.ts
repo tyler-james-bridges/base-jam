@@ -447,7 +447,14 @@ test("one thumb can tap, flick, and read the channel HUD in both phone orientati
   await expect(
     page.locator(".pulse-channel-statuses > span b"),
   ).toHaveText(["BEAT", "BASS", "SYNTH", "FX"]);
-  await expect(page.locator(".pulse-phrase-status i")).toHaveCount(2);
+  // Opening phrases have 2 cues; later phrases have 3 or 4. Slow runs
+  // reach a later phrase before this assertion, so any chart size is valid.
+  await expect
+    .poll(async () => {
+      const count = await page.locator(".pulse-phrase-status i").count();
+      return count === 2 || count === 3 || count === 4;
+    })
+    .toBe(true);
 
   const tapBox = await tapSurface.boundingBox();
   expect(tapBox).not.toBeNull();
