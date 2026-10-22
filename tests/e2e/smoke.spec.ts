@@ -183,6 +183,7 @@ async function hitExpectedCue(
   page: Page,
   pointerId: number,
   fallbackGesture?: { deltaX?: number; deltaY?: number },
+  options?: { holdHud?: boolean },
 ): Promise<number> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const before = await dispatchWhenCueReady(page, {
@@ -190,10 +191,27 @@ async function hitExpectedCue(
       pointerId: pointerId + attempt * 100,
     });
     const observed = await page.waitForFunction(
-      ({ cue, hits }) => {
+      ({ cue, hits, holdHud }) => {
         const element = document.querySelector(".pulse-game-layout");
         const nextHits = Number(element?.getAttribute("data-hits"));
         if (nextHits > hits) {
+          if (holdHud) {
+            const visibility = Object.getOwnPropertyDescriptor(
+              Document.prototype,
+              "visibilityState",
+            );
+            if (visibility?.configurable !== false) {
+              Object.defineProperty(Document.prototype, "visibilityState", {
+                configurable: true,
+                get: () => "hidden",
+              });
+              Object.defineProperty(Document.prototype, "hidden", {
+                configurable: true,
+                get: () => true,
+              });
+            }
+            document.dispatchEvent(new Event("visibilitychange"));
+          }
           return { combo: Number(element?.getAttribute("data-combo")), hit: true };
         }
         if (Number(element?.getAttribute("data-current-cue")) > cue) {
@@ -201,7 +219,7 @@ async function hitExpectedCue(
         }
         return null;
       },
-      { cue: before.cue, hits: before.hits },
+      { cue: before.cue, hits: before.hits, holdHud: options?.holdHud === true },
       { polling: 16, timeout: 2_000 },
     );
     const value = await observed.jsonValue();
@@ -271,6 +289,9 @@ test("home makes the live Base rhythm game the focal point", async ({ page }) =>
 test("one thumb can tap, flick, and read the channel HUD in both phone orientations", async ({
   page,
 }) => {
+  // WebGL startup plus five live cue windows can outlast the 20s song and
+  // the default 30s test cap on a slow phone run.
+  test.setTimeout(60_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await mockPlayableApi(page);
   await page.goto("/");
@@ -485,7 +506,12 @@ test("one thumb can tap, flick, and read the channel HUD in both phone orientati
   await expect(game).toHaveAttribute("data-expected-route", "right");
 
   await page.waitForTimeout(110);
-  expect(await hitExpectedCue(page, 14)).toBeGreaterThan(0);
+  // Stop the clock in the same browser turn as the last hit. The song is
+  // 20s, and the mute and orientation checks need the HUD to stay mounted.
+  expect(
+    await hitExpectedCue(page, 14, undefined, { holdHud: true }),
+  ).toBeGreaterThan(0);
+  await expect(board).toHaveAttribute("data-playback-phase", "paused");
   await expect(game).toHaveAttribute("data-tutorial-step", "4");
   await expect(game).toHaveAttribute("data-last-gesture", "flick-right");
   await expect(game).toHaveAttribute("data-hits", "4");
