@@ -205,7 +205,7 @@ async function hitExpectedCue(
       { polling: 16, timeout: 2_000 },
     );
     const value = await observed.jsonValue();
-    if (value.hit) return value.combo;
+    if (value?.hit) return value.combo;
   }
   throw new Error("Five readable cue windows passed without a hit.");
 }
