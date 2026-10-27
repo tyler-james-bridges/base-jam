@@ -18,6 +18,9 @@ const eslintConfig = [
       "test-results/**",
       "coverage/**",
       "artifacts/**",
+      // Next 15.5 writes a triple-slash path reference here. The generated
+      // file is gitignored and is not application source.
+      "next-env.d.ts",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
